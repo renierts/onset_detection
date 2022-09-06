@@ -11,13 +11,13 @@ import logging
 import matplotlib.pyplot as plt
 import seaborn as sns
 
-from sklearn.preprocessing import StandardScaler
 from sklearn.model_selection import RandomizedSearchCV
 from sklearn.utils.fixes import loguniform
 from scipy.stats import uniform
-from file_handling import (
-    load_data, export_results, serialize_model, deserialize_model)
-from preprocessing import select_features
+from dataset import OnsetDataset
+from signal_processing import OnsetPreProcessor
+from model_selection import PredefinedTrainValidationTestSplit
+import numpy as np
 
 from pyrcn.extreme_learning_machine import ELMRegressor
 
@@ -47,8 +47,19 @@ def main(plot=False, export=False, serialize=False):
         Results that are stored in data/results.dat
     """
 
-    LOGGER.info("Loading the training dataset...")
-    training_data = load_data("./data/train.csv")
+    LOGGER.info("Loading the dataset...")
+    dataset = OnsetDataset(
+        path=r"C:\Users\Steiner\Documents\Python\onset_detection\data",
+        audio_suffix=".flac")
+    X, y = dataset.return_X_y(pre_processor=OnsetPreProcessor())
+    test_fold = np.zeros(shape=X.shape)
+    start_idx = 0
+    for k, fold in enumerate(dataset.folds):
+        test_fold[start_idx:len(fold)] = k
+        start_idx += len(fold)
+    cv_vali = PredefinedTrainValidationTestSplit(test_fold=test_fold)
+    cv_test = PredefinedTrainValidationTestSplit(test_fold=test_fold,
+                                                 validation=False)
     LOGGER.info("... done!")
 
     if plot:
