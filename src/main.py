@@ -12,20 +12,31 @@ import matplotlib.pyplot as plt
 import seaborn as sns
 
 from sklearn.model_selection import RandomizedSearchCV
+from sklearn.metrics import make_scorer
 from sklearn.utils.fixes import loguniform
 from scipy.stats import uniform
 from dataset import OnsetDataset
 from signal_processing import OnsetPreProcessor
 from model_selection import PredefinedTrainValidationTestSplit
 import numpy as np
+from scipy.spatial.distance import cosine
+from joblib import dump, load
 
-from pyrcn.extreme_learning_machine import ELMRegressor
+from pyrcn.echo_state_network import ESNRegressor
+from pyrcn.model_selection import SequentialSearchCV
 
 
 LOGGER = logging.getLogger(__name__)
 
 
-def main(plot=False, export=False, serialize=False):
+def cosine_distance(y_true, y_pred):
+    loss = []
+    for y_t, y_p in zip(y_true, y_pred):
+        loss.append(cosine(y_t, y_p))
+    return np.mean(loss)
+
+
+def main(plot=False, export=False):
     """
     This is the main function to reproduce all visualizations and models for
     the paper "Template Repository for Research Papers with Python Code".
@@ -55,7 +66,7 @@ def main(plot=False, export=False, serialize=False):
     test_fold = np.zeros(shape=X.shape)
     start_idx = 0
     for k, fold in enumerate(dataset.folds):
-        test_fold[start_idx:len(fold)] = k
+        test_fold[start_idx:start_idx + len(fold)] = k
         start_idx += len(fold)
     cv_vali = PredefinedTrainValidationTestSplit(test_fold=test_fold)
     cv_test = PredefinedTrainValidationTestSplit(test_fold=test_fold,
@@ -63,66 +74,60 @@ def main(plot=False, export=False, serialize=False):
     LOGGER.info("... done!")
 
     if plot:
-        fig, axs = plt.subplots()
-        sns.pairplot(data=training_data, vars=["LotArea", "OverallQual",
-                                               "OverallCond", "YearBuilt",
-                                               "YearRemodAdd", "GrLivArea",
-                                               "SalePrice"])
-        plt.title("Training data")
+        fig, axs = plt.subplots(2, 1)
+        sns.heatmap(data=X[0].T, ax=axs[0], square=False, )
+        axs[0].invert_yaxis()
         plt.tight_layout()
+        sns.lineplot(x=list(range(len(y[0]))), y=y[0], ax=axs[1])
+        plt.show()
 
-    LOGGER.info("Selecting input feature set...")
-    X, y, feature_trf = select_features(
-        df=training_data, input_features=["GrLivArea"], target="SalePrice")
-    LOGGER.info("... done!")
+    LOGGER.info(f"Creating ESN pipeline...")
+    initial_esn_params = {
+        'hidden_layer_size': 50, 'k_in': 10, 'input_scaling': 0.4,
+        'input_activation': 'identity', 'bias_scaling': 0.0,
+        'spectral_radius': 0.0, 'leakage': 1.0, 'k_rec': 10,
+        'reservoir_activation': 'tanh', 'bidirectional': False,
+        'alpha': 1e-5, 'random_state': 42}
 
-    LOGGER.info("Scaling the dataset to have zero mean and a variance of 1...")
-    scaler = StandardScaler().fit(X)
-    X_train = scaler.transform(X)
-    y_train = y
+    base_esn = ESNRegressor(**initial_esn_params)
     LOGGER.info("... done!")
+    # Run model selection
+    LOGGER.info(f"Performing the optimization...")
+    step1_params = {
+        'esn__regressor__input_scaling': uniform(loc=1e-2, scale=1),
+        'esn__regressor__spectral_radius': uniform(loc=0, scale=2)}
+    step2_params = {'esn__regressor__leakage': uniform(1e-1, 1e0)}
+    step3_params = {
+        'esn__regressor__bias_scaling': uniform(loc=0, scale=2)}
+
+    kwargs_step1 = {
+        'n_iter': 200, 'random_state': 42, 'verbose': 1, 'n_jobs': -1,
+        'scoring': make_scorer(cosine_distance, greater_is_better=False),
+        "cv": cv_vali}
+    kwargs_step2 = {
+        'n_iter': 50, 'random_state': 42, 'verbose': 1, 'n_jobs': -1,
+        'scoring': make_scorer(cosine_distance, greater_is_better=False),
+        "cv": cv_vali}
+    kwargs_step3 = {
+        'n_iter': 50, 'random_state': 42, 'verbose': 1, 'n_jobs': -1,
+        'scoring': make_scorer(cosine_distance, greater_is_better=False),
+        "cv": cv_vali}
+
+    searches = [
+        ('step1', RandomizedSearchCV, step1_params, kwargs_step1),
+        ('step2', RandomizedSearchCV, step2_params, kwargs_step2),
+        ('step3', RandomizedSearchCV, step3_params, kwargs_step3)]
 
     try:
-        LOGGER.info("Attempting to load a pre-trained model...")
-        model = deserialize_model("./results/model.joblib")
+        search = load(f'./results/sequential_search_basic_esn.joblib')
     except FileNotFoundError:
-        LOGGER.info("... No model serialized yet.")
-        LOGGER.info("Fitting a new model...")
-        model = RandomizedSearchCV(
-            estimator=ELMRegressor(input_activation="relu", random_state=42,
-                                   hidden_layer_size=50),
-            param_distributions={"input_scaling": uniform(loc=0, scale=2),
-                                 "bias_scaling": uniform(loc=0, scale=2),
-                                 "alpha": loguniform(1e-5, 1e1)},
-            random_state=42, n_iter=200, refit=True).fit(X_train, y_train)
-
+        search = SequentialSearchCV(base_esn, searches=searches).fit(X, y)
+        dump(search, f'./results/sequential_search_basic_esn.joblib')
     LOGGER.info("... done!")
-    if serialize:
-        serialize_model(model, "./results/model.joblib")
 
     if plot:
         y_pred = model.predict(X)
-        sns.scatterplot(x=X.ravel(), y=y_pred.ravel(), ax=axs)
-
-    LOGGER.info("Loading the test dataset...")
-    test_data = load_data("./data/test.csv")
-    LOGGER.info("... done!")
-
-    LOGGER.info("Selecting input feature set...")
-    X = feature_trf.transform(test_data)
-    LOGGER.info("... done!")
-    LOGGER.info("Scaling the dataset with the fitted training scaler...")
-    X_test = scaler.transform(X)
-    LOGGER.info("... done!")
-    LOGGER.info("Predicting prices on the test set...")
-    y_pred = model.predict(X_test)
-    LOGGER.info("... done!")
-    if plot:
-        fig, axs = plt.subplots()
-        sns.scatterplot(x=X.ravel(), y=y_pred.ravel(), ax=axs)
-        plt.ylabel("Predicted SalePrice")
-        plt.title("Test data")
-        plt.tight_layout()
+        sns.lineplot(x=X.ravel(), y=y_pred.ravel(), ax=axs[1])
 
     results = {
         "GrLivArea": test_data["GrLivArea"], "PredictedSalePrice":
@@ -143,13 +148,12 @@ if __name__ == "__main__":
     # TODO: Specify command line arguments to add runtime options for the code.
     parser.add_argument("--plot", action="store_true")
     parser.add_argument("--export", action="store_true")
-    parser.add_argument("--serialize", action="store_true")
     args = vars(parser.parse_args())
     logging.basicConfig(format="%(asctime)s - [%(levelname)8s]: %(message)s",
                         handlers=[
                             logging.FileHandler("main.log", encoding="utf-8"),
                             logging.StreamHandler()
-                        ])
+                        ], level=logging.DEBUG)
     LOGGER.setLevel(logging.DEBUG)
     main(**args)
     exit(0)
