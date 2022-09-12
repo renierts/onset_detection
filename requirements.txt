@@ -8,3 +8,5 @@ librosa
 Cython
 madmom
 gdown
+scipy
+numpy

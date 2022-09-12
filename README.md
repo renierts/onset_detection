@@ -1,90 +1,61 @@
-# Template Repository for Research Papers
+# Supplemental Code Repository for the research paper "Feature Engineering and Stacked Echo State Networks for Musical Onset Detection"
 ## Metadata
-- Author: [Peter Steiner](mailto:peter.steiner@tu-dresden.de)
-- Conference: Forschungsseminar "Sprache und Kognition", 
-Institute for Acoustics and Speech Communication, Technische Universität Dresden, 
-Dresden, Germany
-- Weblink:
-[https://github.com/TUD-STKS/TemplateRepository](https://github.com/TUD-STKS/TemplateRepository)
+- Authors: [Peter Steiner](mailto:peter.steiner@tu-dresden.de), Azarakhsh Jalalvand, 
+  Simon Stone, Peter Birkholz
+- Conference: 2020 25th International Conference on Pattern Recognition (ICPR), Milan,
+  2021
+- Weblink: [10.1109/ICPR48806.2021.9413205](http://dx.doi.org/10.1109/ICPR48806.2021.9413205)
 
 ## Summary and Contents
-This is a template repository for code accompanying a research paper and should allow 
-to reproduce the results from the paper.
-
-This template provides everything to getting started. and it can directly be used
-for basically any research paper.
-
-We propose to use the following structure of this README:
-- Title of the paper
-- Metadata:
-    - Metadata contains the author names, journal/conference, weblinks, such as the 
-Digital Object Identifier(DOI)etc.
-- Summary and Contents:
-    - The summary is typically not the abstract of the paper but a summary of what the
-     repo containts.
-     - Take care of the Copyright of the publisher
-- File list:
-    - The file list contains all files provided in the repository together with a 
-    short description.
-- Usage:
-    - How can users get started with your research code. This contains setting up a 
-    installing packages in a virtual environment `venv` and running one `main.py` that
-    includes your main code. 
-    - Very important and often forgotten: How can the data to reproduce the results be
-    obtained?
-    - In case of a Jupyter notebook, it is strongly recommended to add a link to 
-    [Binder](https://mybinder.org/).
-- Acknowledgments:
-    - Any kind of required funding information 
-    - other acknowledgments, such as project partners, contributors, family etc.
-- License:
-    - Reference to the license of your code - how can readers re-use it?
-    - Which defaults?
-- Referencing:
-    - How can your work be cited? Ideally, provide a bibtex entry of the paper.
+In music analysis, one of the most fundamental tasks is note onset detection - detecting
+the beginning of new note events. As the target function of onset detection is related to
+other tasks, such as beat tracking or tempo estimation, onset detection is the basis for
+such related tasks. Furthermore, it can help to improve Automatic Music Transcription
+(AMT). Typically, different approaches for onset detection follow a similar outline: An
+audio signal is transformed into an Onset Detection Function (ODF), which should have
+rather low values (i.e. close to zero) for most of the time but with pronounced peaks at
+onset times, which can then be extracted by applying peak picking algorithms on the ODF.
+In the recent years, several kinds of neural networks were used successfully to compute
+the ODF from feature vectors. Currently, Convolutional Neural Networks (CNNs) define the
+state of the art. In this paper, we build up on an alternative approach to obtain a ODF
+by Echo State Networks (ESNs), which have achieved comparable results to CNNs in several
+tasks, such as speech and image recognition. In contrast to the typical iterative
+training procedures of deep learning architectures, such as CNNs or networks consisting
+of Long-Short-Term Memory Cells (LSTMs), in ESNs only a very small part of the weights is
+easily trained in one shot using linear regression.
 
 ## File list
 - The following scripts are provided in this repository
-    - `scripts/run.sh`: UNIX Bash script to reproduce the Figures in the paper.
+    - `scripts/run.sh`: UNIX Bash script to reproduce the results in the paper.
     - `scripts/run_jupyter-lab.sh`: UNIX Bash script to start the Jupyter Notebook for 
    the paper.
-    - `scripts/run.bat`: Windows batch script to reproduce the Figures in the paper.
+    - `scripts/run.bat`: Windows batch script to reproduce the results in the paper.
     - `scripts/run_jupyter-lab.bat`: Windows batch script to start the Jupyter Notebook 
   for the paper.
-- The following python code is provided in `src`
-    - `src/file_handling.py`: Utility functions for storing and loading data and models.
-    - `src/preprocessing.py`: Utility functions for preprocessing the dataset
+- The following python code and modules are provided in `src`
+    - `src/dataset`: Utility functions for storing and loading data and models.
+    - `src/model_selection`: Wrapper class for `sklearn.model_selection.PredefinedSplit`
+  to support splitting a dataset in training/validation/test.
+    - `src/signal_processing`: Utility functions to do the feature 
+      extraction using madmom and librosa.
     - `src/main.py`: The main script to reproduce all results.
-- `requirements.txt`: Text file containing all required Python modules to be installed
-if we are working in Python. It can be obtained by typing 
-`pip freeze > requirements.txt` in a PowerShell or in a Bash. 
+- `requirements.txt`: Text file containing all required Python modules to be installed. 
 - `README.md`: The README displayed here.
-- `LICENSE`: Textfile containing the license for this source code. You can find 
-- `data/`: The optional directory `data` contains
-    - `train.csv`: Training data as CSV file
-    - `test.csv`: Test data as CSV file
-- `results/`
-    - (Pre)-trained modelss.
-    - Results as CSV file.
-- `.gitignore`: Command file for Github to ignore files with specific extensions. This
-is useful to keep the repository clean. Templates for many programming languages are 
-available [here](https://github.com/github/gitignore).
+- `LICENSE`: Textfile containing the license for this source code.
+- `data/`: The empty directory, in which the dataset is getting downloaded.
+- `results/`:
+    - (Pre)-trained models
+    - ...
 
 ## Usage
 The easiest way to reproduce the results is to use a service like 
-[Binder](https://mybinder.org/) and run the Jupyter Notebook (if available). It is 
-nowadays highly recommended, because this does not even require a local installation 
-and Jupyter Notebooks are very intuitive to use.
+[Binder](https://mybinder.org/) and run the Jupyter Notebook (if available).
 
-Do not forget to add a badge from Binder as below. Therefore, you can simply paste the
-link to your Github repository [here](https://mybinder.org/) and Binder will do the 
-rest for you.
-
-[![Binder](https://mybinder.org/badge_logo.svg)](https://mybinder.org/v2/gh/TUD-STKS/SupplementalCodeTemplate/HEAD?labpath=src%2FExample-Notebook.ipynb)
+[![Binder](https://mybinder.org/badge_logo.svg)](https://mybinder.org/v2/gh/renierts/onset_detection/HEAD)
 
 To run the scripts or to start the Jupyter Notebook locally, at first, please ensure 
-that you have a valid Python distribution installed on your system. Here, at least 
-Python 3.8 is required.
+that you have a valid Python distribution installed on your system. Here, at least Python
+3.8 is required.
 
 You can then call `run_jupyter-lab.ps1` or `run_jupyter-lab.sh`. This will install a new 
 [Python venv](https://docs.python.org/3/library/venv.html), which is our recommended way 
@@ -96,24 +67,37 @@ that will automatically install all packages from PyPI. Afterwards, just type
 `source .virtualenv/bin/activate` in a UNIX bash or `.virtualenv/Scripts/activate.ps1`
 in a PowerShell.
 
-The individual steps to reproduce the results should be in the same order as in the 
-paper. Great would be self-explanatory names for each step.
+At first, we import required Python modules. Then, we start loading the data. 
+The dataset can be either downloaded from here or 
 
-At first, we import required Python modules and load the dataset, which is already 
-stored in `data`. 
+Since the data is stored as a Pandas dataframe, we can theoretically multiple features.
+Here, we restrict the data features to the living area. With the function
+`select_features`, we obtain numpy arrays and the feature transformer that can also be
+used for transforming the test data later. Next, we normalize them to zero mean and
+unitary variance.
 
 ```python
-from file_handling import (load_data)
+from dataset import OnsetDataset
+from signal_processing import OnsetPreProcessor
+from model_selection import PredefinedTrainValidationTestSplit
+import numpy as np
 
 
-training_data = load_data("../data/train.csv")
+dataset = OnsetDataset(
+  path=r"C:\Users\Steiner\Documents\Python\onset_detection\data",
+  audio_suffix=".flac")
+X, y = dataset.return_X_y(pre_processor=OnsetPreProcessor())
+test_fold = np.zeros(shape=X.shape)
+start_idx = 0
+for k, fold in enumerate(dataset.folds):
+  test_fold[start_idx:start_idx + len(fold)] = k
+  start_idx += len(fold)
+cv_vali = PredefinedTrainValidationTestSplit(test_fold=test_fold)
+cv_test = PredefinedTrainValidationTestSplit(test_fold=test_fold,
+                                             validation=False)
 ```
 
-Since the data is stored as a Pandas dataframe, we can theoretically multiple features. 
-Here, we restrict the data features to the living area. With the function 
-`select_features`, we obtain numpy arrays and the feature transformer that can also be
-used for transforming the test data later. Next, we normalize them to zero mean and 
-unitary variance.
+
 
 ```python
 from sklearn.preprocessing import StandardScaler

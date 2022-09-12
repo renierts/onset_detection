@@ -16,10 +16,10 @@ from sklearn.metrics import make_scorer
 from sklearn.utils.fixes import loguniform
 from scipy.stats import uniform
 from dataset import OnsetDataset
+from metrics import cosine_distance
 from signal_processing import OnsetPreProcessor
 from model_selection import PredefinedTrainValidationTestSplit
 import numpy as np
-from scipy.spatial.distance import cosine
 from joblib import dump, load
 
 from pyrcn.echo_state_network import ESNRegressor
@@ -27,13 +27,6 @@ from pyrcn.model_selection import SequentialSearchCV
 
 
 LOGGER = logging.getLogger(__name__)
-
-
-def cosine_distance(y_true, y_pred):
-    loss = []
-    for y_t, y_p in zip(y_true, y_pred):
-        loss.append(cosine(y_t, y_p))
-    return np.mean(loss)
 
 
 def main(plot=False, export=False):
@@ -79,7 +72,6 @@ def main(plot=False, export=False):
         axs[0].invert_yaxis()
         plt.tight_layout()
         sns.lineplot(x=list(range(len(y[0]))), y=y[0], ax=axs[1])
-        plt.show()
 
     LOGGER.info(f"Creating ESN pipeline...")
     initial_esn_params = {
@@ -126,20 +118,13 @@ def main(plot=False, export=False):
     LOGGER.info("... done!")
 
     if plot:
-        y_pred = model.predict(X)
-        sns.lineplot(x=X.ravel(), y=y_pred.ravel(), ax=axs[1])
+        y_pred = search.predict(X)
+        sns.lineplot(
+            x=list(range(len(y_pred[0]))), y=y_pred[0].flatten(), ax=axs[1])
 
-    results = {
-        "GrLivArea": test_data["GrLivArea"], "PredictedSalePrice":
-            y_pred.ravel()}
-
-    if export:
-        LOGGER.info("Storing results...")
-        export_results(results, "./results/results.csv")
-        LOGGER.info("... done!")
     if plot:
         plt.show()
-    return results
+    return search.all_cv_results_
 
 
 if __name__ == "__main__":
