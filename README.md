@@ -84,7 +84,7 @@ import numpy as np
 
 
 dataset = OnsetDataset(
-  path=r"C:\Users\Steiner\Documents\Python\onset_detection\data",
+  path="/scratch/ws/1/s2575425-onset-detection/onset_detection/data",
   audio_suffix=".flac")
 X, y = dataset.return_X_y(pre_processor=OnsetPreProcessor())
 test_fold = np.zeros(shape=X.shape)
