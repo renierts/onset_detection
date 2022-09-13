@@ -54,7 +54,7 @@ def main(plot=False, export=False):
     LOGGER.info("Loading the dataset...")
     pre_processor = OnsetPreProcessor()
     dataset = OnsetDataset(
-        path=r"/scratch/ws/1/s2575425-onset-detection/data",
+        path=r"/scratch/ws/1/s2575425-onset-detection/onset_detection/data",
         audio_suffix=".flac")
     X, y = dataset.return_X_y(pre_processor=pre_processor)
     test_fold = np.zeros(shape=X.shape)

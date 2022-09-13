@@ -54,6 +54,7 @@ class PredefinedTrainValidationTestSplit(PredefinedSplit):
     """
 
     def __init__(self, test_fold, validation=True):
+        """Constructing the PredefinedTrainValidationTestSplit."""
         super().__init__(test_fold=test_fold)
         self.validation = validation
 

@@ -1,12 +1,13 @@
-matplotlib
+Cython
+numpy
+Cython
+numpy
 pandas
 pyrcn
+matplotlib
 seaborn
 scikit-learn
 jupyterlab
 librosa
-Cython
 madmom
 gdown
-scipy
-numpy

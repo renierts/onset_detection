@@ -8,7 +8,17 @@ import madmom
 
 
 class OnsetDataset(object):
+    """
+    The class OnsetDataset is adapted from the ISMIR 2018 tutorial "Deep
+    Learning for Music Information Retrieval" (
+    https://github.com/slychief/ismir2018_tutorial), particularly on the Onset
+    part.
 
+    It tries to find all files of the onset detection dataset in a given
+    directory. If this fails, the files are downloaded from Google Drive and
+    then stored.
+
+    """
     def __init__(self, path, audio_suffix='.wav', annotation_suffix='.onsets'):
         if not os.listdir(path):
             gdown.download(id="1ICEfaZ2r_cnqd3FLNC5F_UOEUalgV7cv",
