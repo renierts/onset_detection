@@ -18,6 +18,8 @@ class OnsetDataset(object):
     directory. If this fails, the files are downloaded from Google Drive and
     then stored.
 
+    Parameters
+    ----------
     """
     def __init__(self, path, audio_suffix='.wav', annotation_suffix='.onsets'):
         if len(os.listdir(path)) < 2:
