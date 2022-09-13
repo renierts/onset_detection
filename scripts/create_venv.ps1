@@ -5,6 +5,6 @@
 
 python.exe -m venv .virtualenv
 
-.\.virtualenv\Scripts\activate.ps1
+.\venv\Scripts\activate.ps1
 python.exe -m pip install -r requirements.txt
 deactivate
