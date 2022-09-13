@@ -20,7 +20,7 @@ class OnsetDataset(object):
 
     """
     def __init__(self, path, audio_suffix='.wav', annotation_suffix='.onsets'):
-        if not os.listdir(path):
+        if len(os.listdir(path)) < 2:
             gdown.download(id="1ICEfaZ2r_cnqd3FLNC5F_UOEUalgV7cv",
                            output=f"{path}/tmp.zip")
             with zipfile.ZipFile(f"{path}/tmp.zip", 'r') as zip_ref:
