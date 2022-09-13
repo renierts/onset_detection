@@ -123,6 +123,14 @@ def main(plot=False, export=False):
         sns.scatterplot(data=df, x="input_scaling", y="spectral_radius",
                         hue="mean_test_score", ax=axs)
 
+        df = pd.DataFrame(search.all_cv_results_["step2"])
+        fig, axs = plt.subplots()
+        sns.lineplot(data=df, x="leakage", y="mean_test_score", ax=axs)
+
+        df = pd.DataFrame(search.all_cv_results_["step3"])
+        fig, axs = plt.subplots()
+        sns.lineplot(data=df, x="bias_scaling", y="mean_test_score", ax=axs)
+
         sns.lineplot(
             x=list(range(len(y_pred[0]))), y=y_pred[0].flatten(), ax=axs[1])
 
