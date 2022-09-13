@@ -1,6 +1,6 @@
 """
-Main Code to reproduce the results in the paper
-'Template Repository for Research Papers with Python Code'.
+Main Code to reproduce the results in the paper 'Feature Engineering and
+Stacked Echo State Networks for Musical Onset Detection'.
 """
 
 # Authors: Peter Steiner <peter.steiner@tu-dresden.de>,
@@ -120,16 +120,18 @@ def main(plot=False, export=False):
     if plot:
         df = pd.DataFrame(search.all_cv_results_["step1"])
         fig, axs = plt.subplots()
-        sns.scatterplot(data=df, x="input_scaling", y="spectral_radius",
-                        hue="mean_test_score", ax=axs)
+        sns.scatterplot(data=df, x="param_input_scaling",
+                        y="param_spectral_radius", hue="mean_test_score",
+                        ax=axs)
 
         df = pd.DataFrame(search.all_cv_results_["step2"])
         fig, axs = plt.subplots()
-        sns.lineplot(data=df, x="leakage", y="mean_test_score", ax=axs)
+        sns.lineplot(data=df, x="param_leakage", y="mean_test_score", ax=axs)
 
         df = pd.DataFrame(search.all_cv_results_["step3"])
         fig, axs = plt.subplots()
-        sns.lineplot(data=df, x="bias_scaling", y="mean_test_score", ax=axs)
+        sns.lineplot(data=df, x="param_bias_scaling", y="mean_test_score",
+                     ax=axs)
 
         sns.lineplot(
             x=list(range(len(y_pred[0]))), y=y_pred[0].flatten(), ax=axs[1])

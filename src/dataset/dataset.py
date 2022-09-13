@@ -1,3 +1,4 @@
+"""Class to hold the onset dataset."""
 import gdown
 import zipfile
 import os
@@ -20,15 +21,25 @@ class OnsetDataset(object):
 
     Parameters
     ----------
+    path : str
+        /path/to/onset/data
+        The path to the onset dataset, which contains the subdirectories
+        "annotations", "audio" and "splits"
+    audio_suffix : str, default = ".wav".
+        The suffix of the audio files.
+    annotation_suffix : str, default = ".onsets".
+        The suffix of the annotation files.
     """
     def __init__(self, path, audio_suffix='.wav', annotation_suffix='.onsets'):
+        """Construct the OnsetDataset."""
         if len(os.listdir(path)) < 2:
             gdown.download(id="1ICEfaZ2r_cnqd3FLNC5F_UOEUalgV7cv",
                            output=f"{path}/tmp.zip")
             with zipfile.ZipFile(f"{path}/tmp.zip", 'r') as zip_ref:
                 zip_ref.extractall(path)
             os.remove(f"{path}/tmp.zip")
-            for file_name in os.listdir(os.path.join(path, "onsets_ISMIR_2012")):
+            for file_name in os.listdir(
+                    os.path.join(path, "onsets_ISMIR_2012")):
                 os.rename(os.path.join(path, "onsets_ISMIR_2012", file_name),
                           os.path.join(path, file_name))
             os.rmdir(os.path.join(path, "onsets_ISMIR_2012"))
@@ -60,6 +71,15 @@ class OnsetDataset(object):
         self._load_annotations()
 
     def _load_splits(self, fold_suffix='.fold'):
+        """
+        Load the onset splits.
+
+        Parameters
+        ----------
+        fold_suffix : str, default = '.fold'.
+            The suffix of the text files that contain the cross validation
+            splits.
+        """
         path = os.path.join(self.path, "splits")
         self.split_files = sorted(Path(path).rglob(f"*{fold_suffix}"))
         # populate folds
@@ -81,6 +101,27 @@ class OnsetDataset(object):
             self.folds.append(np.array(fold_idx))
 
     def return_X_y(self, pre_processor, kernel=(0.5, 1.0, 0.5)):
+        """
+        Return the dataset in a PyRCN-conform way.
+
+        Parameters
+        ----------
+        pre_processor : object
+            The object to preprocess each audio file.
+        kernel : Tuple, default = (0.5, 1.0, 0.5)
+            Kernel to convolve the target with. If the target should not be
+            widened, pass (0.0, 1.0, 0.0) as the kernel.
+
+        Returns
+        -------
+        X : np.ndarray(shape=(n_sequences, ), dtype=object)
+            The extracted sequences. Each element of X is a numpy array of
+            shape (n_samples, n_features), where n_samples is the sequence
+            length.
+        y : np.ndarray(shape=(n_sequences, ), dtype=object)
+            The pre-processed targets. Each element of y is a numpy array of
+            shape (n_samples, 1), where n_samples is the sequence  length.
+        """
         X = np.empty(shape=(len(self.audio_files), ), dtype=object)
         y = np.empty(shape=(len(self.audio_files), ), dtype=object)
         for k, (audio_file, annotation) in enumerate(
@@ -92,6 +133,29 @@ class OnsetDataset(object):
     @staticmethod
     def _pre_process(audio_file, annotation, pre_processor,
                      kernel=(0.5, 1.0, 0.5)):
+        """
+        Pre-process the dataset.
+
+        Parameters
+        ----------
+        audio_file : Union[Path, str]
+            Full path to the audio file to be pre-processed.
+        annotation : np.ndarray
+            The onset events, i.e., the time stamps at which onsets occur.
+        pre_processor : object
+            The object to preprocess each audio file.
+        kernel : Tuple, default = (0.5, 1.0, 0.5)
+            Kernel to convolve the target with. If the target should not be
+            widened, pass (0.0, 1.0, 0.0) as the kernel.
+
+        Returns
+        -------
+        X : np.ndarray, shape = (n_samples, n_features)
+            The features extracted from the audio file.
+        y : np.ndarray, shape = (n_samples, 1)
+            The quantized and widened targets that correspond to the audio
+            file.
+        """
         X = pre_processor(str(audio_file))
         y = madmom.utils.quantize_events(
             annotation, fps=100, length=X.shape[0])
@@ -99,5 +163,6 @@ class OnsetDataset(object):
         return X, y
 
     def _load_annotations(self):
+        """Load the onset annotations from an annotation file."""
         self.annotations = [
             np.loadtxt(file, ndmin=1) for file in self.annotation_files]

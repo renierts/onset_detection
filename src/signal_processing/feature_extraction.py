@@ -12,6 +12,31 @@ import numpy as np
 
 # define pre-processor
 class OnsetPreProcessor(SequentialProcessor):
+    """
+    Processor class for the feature extraction.
+
+    Parameters
+    ----------
+    sample_rate : float, default = 44100
+        The sampling frequency in Hertt to be utilized. If the original
+        sampling frequency is different from the parameter, the audio file is
+        resampled prior to the consecutive steps.
+    frame_rate : float, default = 100
+        The frame rate in Hz, i.e., 1 / window_shift.
+    fmin : float, default = 30
+        The minimum frequency to be considered in the filterbank.
+    fmax : float, default = 17000
+        The maximum frequency to be considered in the analysis.
+    norm_filters : bool, default = True
+        Whether to normalize the filter to an area of 1.
+    unique_filters : bool, default = True
+        Whether to remove duplicate filters from the filterbank.
+    frame_sizes : tuple, default = (1024, 2048, 4096)
+        The frame sizes in samples to be used for the multi-resolution feature
+        extraction.
+    num_bands : tuple, default = (3, 6, 12)
+        The number of bands to be used for the different window sizes.
+    """
 
     def __init__(self, sample_rate=44100., frame_rate=100, fmin=30, fmax=17000,
                  norm_filters=True, unique_filters=True,
