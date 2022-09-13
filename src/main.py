@@ -53,7 +53,7 @@ def main(plot=False, export=False):
     """
 
     LOGGER.info("Loading the dataset...")
-    pre_processor = OnsetPreProcessor(frame_sizes=(1024, ), num_bands=(3, ))
+    pre_processor = OnsetPreProcessor(frame_sizes=(2048, ), num_bands=(6, ))
     dataset = OnsetDataset(
         path=r"/scratch/ws/1/s2575425-onset-detection/onset_detection/data",
         audio_suffix=".flac")
@@ -111,10 +111,10 @@ def main(plot=False, export=False):
         ('step3', RandomizedSearchCV, step3_params, kwargs_step3)]
 
     try:
-        search = load(f'./results/sequential_search_basic_esn_1024.joblib')
+        search = load(f'./results/sequential_search_basic_esn_2048.joblib')
     except FileNotFoundError:
         search = SequentialSearchCV(base_esn, searches=searches).fit(X, y)
-        dump(search, f'./results/sequential_search_basic_esn_1024.joblib')
+        dump(search, f'./results/sequential_search_basic_esn_2048.joblib')
     LOGGER.info("... done!")
 
     if plot:
