@@ -21,6 +21,7 @@ from signal_processing import OnsetPreProcessor
 from model_selection import PredefinedTrainValidationTestSplit
 import numpy as np
 from joblib import dump, load
+import pandas as pd
 
 from pyrcn.echo_state_network import ESNRegressor
 from pyrcn.model_selection import SequentialSearchCV
@@ -54,7 +55,7 @@ def main(plot=False, export=False):
     LOGGER.info("Loading the dataset...")
     pre_processor = OnsetPreProcessor()
     dataset = OnsetDataset(
-        path=r"/scratch/ws/1/s2575425-onset-detection/onset_detection/data",
+        path=r":/scratch/ws/1/s2575425-onset-detection/onset_detection/data",
         audio_suffix=".flac")
     X, y = dataset.return_X_y(pre_processor=pre_processor)
     test_fold = np.zeros(shape=X.shape)
@@ -86,23 +87,21 @@ def main(plot=False, export=False):
     LOGGER.info("... done!")
     # Run model selection
     LOGGER.info(f"Performing the optimization...")
-    step1_params = {
-        'esn__regressor__input_scaling': uniform(loc=1e-2, scale=1),
-        'esn__regressor__spectral_radius': uniform(loc=0, scale=2)}
-    step2_params = {'esn__regressor__leakage': uniform(1e-1, 1e0)}
-    step3_params = {
-        'esn__regressor__bias_scaling': uniform(loc=0, scale=2)}
+    step1_params = {'input_scaling': uniform(loc=1e-2, scale=1),
+                    'spectral_radius': uniform(loc=0, scale=2)}
+    step2_params = {'leakage': uniform(1e-1, 1e0)}
+    step3_params = {'bias_scaling': uniform(loc=0, scale=2)}
 
     kwargs_step1 = {
-        'n_iter': 200, 'random_state': 42, 'verbose': 1, 'n_jobs': -1,
+        'n_iter': 200, 'random_state': 42, 'verbose': 10, 'n_jobs': -1,
         'scoring': make_scorer(cosine_distance, greater_is_better=False),
         "cv": cv_vali}
     kwargs_step2 = {
-        'n_iter': 50, 'random_state': 42, 'verbose': 1, 'n_jobs': -1,
+        'n_iter': 50, 'random_state': 42, 'verbose': 10, 'n_jobs': -1,
         'scoring': make_scorer(cosine_distance, greater_is_better=False),
         "cv": cv_vali}
     kwargs_step3 = {
-        'n_iter': 50, 'random_state': 42, 'verbose': 1, 'n_jobs': -1,
+        'n_iter': 50, 'random_state': 42, 'verbose': 10, 'n_jobs': -1,
         'scoring': make_scorer(cosine_distance, greater_is_better=False),
         "cv": cv_vali}
 
@@ -118,10 +117,12 @@ def main(plot=False, export=False):
         dump(search, f'./results/sequential_search_basic_esn.joblib')
     LOGGER.info("... done!")
 
-
-
     if plot:
-        y_pred = search.predict(X)
+        df = pd.DataFrame(search.all_cv_results_["step1"])
+        fig, axs = plt.subplots()
+        sns.scatterplot(data=df, x="input_scaling", y="spectral_radius",
+                        hue="mean_test_score", ax=axs)
+
         sns.lineplot(
             x=list(range(len(y_pred[0]))), y=y_pred[0].flatten(), ax=axs[1])
 
