@@ -114,6 +114,7 @@ def main(plot=False, frame_sizes=(1024, 2048, 4096), num_bands=(3, 6, 12)):
         ('step3', RandomizedSearchCV, step3_params, kwargs_step3)]
 
     decoded_frame_sizes = "_".join(map(str, frame_sizes))
+    LOGGER.info(decoded_frame_sizes)
     try:
         search = load(f'./results/sequential_search_basic_esn_'
                       f'{decoded_frame_sizes}.joblib')
