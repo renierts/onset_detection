@@ -54,7 +54,6 @@ def main(plot=False, frame_sizes=(1024, 2048, 4096), num_bands=(3, 6, 12)):
     results : dict
         Results that are stored in data/results.dat
     """
-
     LOGGER.info("Loading the dataset...")
     pre_processor = OnsetPreProcessor(frame_sizes=frame_sizes,
                                       num_bands=num_bands)
