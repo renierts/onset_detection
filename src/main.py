@@ -97,15 +97,15 @@ def main(plot=False, frame_sizes=(1024, 2048, 4096), num_bands=(3, 6, 12)):
     step3_params = {'bias_scaling': uniform(loc=0, scale=2)}
 
     kwargs_step1 = {
-        'n_iter': 200, 'random_state': 42, 'verbose': 10, 'n_jobs': -1,
+        'n_iter': 200, 'random_state': 42, 'verbose': 1, 'n_jobs': -1,
         'scoring': make_scorer(cosine_distance, greater_is_better=False),
         "cv": cv_vali}
     kwargs_step2 = {
-        'n_iter': 50, 'random_state': 42, 'verbose': 10, 'n_jobs': -1,
+        'n_iter': 50, 'random_state': 42, 'verbose': 1, 'n_jobs': -1,
         'scoring': make_scorer(cosine_distance, greater_is_better=False),
         "cv": cv_vali}
     kwargs_step3 = {
-        'n_iter': 50, 'random_state': 42, 'verbose': 10, 'n_jobs': -1,
+        'n_iter': 50, 'random_state': 42, 'verbose': 1, 'n_jobs': -1,
         'scoring': make_scorer(cosine_distance, greater_is_better=False),
         "cv": cv_vali}
 
@@ -153,7 +153,7 @@ def main(plot=False, frame_sizes=(1024, 2048, 4096), num_bands=(3, 6, 12)):
         axs.set_xlim((0.0, 1.0))
 
     kwargs_final = {
-        'n_iter': 50, 'random_state': 42, 'verbose': 10, 'n_jobs': -1,
+        'n_iter': 50, 'random_state': 42, 'verbose': 1, 'n_jobs': -1,
         'scoring': make_scorer(cosine_distance, greater_is_better=False)}
     param_distributions_final = {'alpha': loguniform(1e-5, 1e1)}
     hidden_layer_sizes = (
