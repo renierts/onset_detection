@@ -68,25 +68,57 @@ that will automatically install all packages from PyPI. Afterwards, just type
 in a PowerShell.
 
 At first, we import required Python modules. Then, we start loading the data. 
-The dataset can be either downloaded from here or 
-
-Since the data is stored as a Pandas dataframe, we can theoretically multiple features.
-Here, we restrict the data features to the living area. With the function
-`select_features`, we obtain numpy arrays and the feature transformer that can also be
-used for transforming the test data later. Next, we normalize them to zero mean and
-unitary variance.
+The dataset can be either downloaded from here or manually downloaded from 
+[here](https://drive.google.com/file/d/1ICEfaZ2r_cnqd3FLNC5F_UOEUalgV7cv/view?usp=sharing).
 
 ```python
+import matplotlib.pyplot as plt
+import seaborn as sns
+
+from sklearn.model_selection import RandomizedSearchCV
+from sklearn.model_selection import PredefinedSplit
+from sklearn.metrics import make_scorer
+from sklearn.utils.fixes import loguniform
+from sklearn.base import clone
+from scipy.stats import uniform
 from dataset import OnsetDataset
+from metrics import cosine_distance
 from signal_processing import OnsetPreProcessor
 from model_selection import PredefinedTrainValidationTestSplit
 import numpy as np
+from joblib import dump, load
+import pandas as pd
+from itertools import product
 
+from pyrcn.echo_state_network import ESNRegressor
+from pyrcn.model_selection import SequentialSearchCV
+```
+
+After downloading the dataset, please extract it to the ``data`` directory, which should
+in the end contain three subdirectories ``annotations``, ``audio``, ``splits``,
+respectively.
+
+In any case, the ``OnsetDataset`` object is responsible to providing the dataset. It is
+initialized with a path to the dataset and optional arguments, such as custom file 
+endings for the different files to be searched for. Importantly, we deal with ``.flac``
+files.
+
+From the dataset class, we load the spectrograms and the target labels in ``(X, y)``,
+where each element is a spectrogram and the corresponding target sequence.
+
+The dataset has a predefined split in training, validation and test folds. To utilize the
+split, we prepare the ``test_fold``, which assigns each input and target sequence to the
+correct fold.
+
+```python
+frame_sizes=(1024, 2048, 4096)
+num_bands=(3, 6, 12)
 
 dataset = OnsetDataset(
   path="/scratch/ws/1/s2575425-onset-detection/onset_detection/data",
   audio_suffix=".flac")
-X, y = dataset.return_X_y(pre_processor=OnsetPreProcessor())
+X, y = dataset.return_X_y(pre_processor=OnsetPreProcessor(frame_sizes=frame_sizes, 
+                                                          num_bands=num_bands))
 test_fold = np.zeros(shape=X.shape)
 start_idx = 0
 for k, fold in enumerate(dataset.folds):
@@ -97,54 +129,99 @@ cv_test = PredefinedTrainValidationTestSplit(test_fold=test_fold,
                                              validation=False)
 ```
 
-
+We optimize a model using a sequence of random searches. The target for the optimization
+is to maximize the cross correlation between the computed output and the ground truth
+output. This randomized approach is slightly different from the grid search described in
+the paper. Consequently, the resulting hyper-parameters are slightly better, and the 
+results will also be slightly different. However, the main outline is still the same.
 
 ```python
-from sklearn.preprocessing import StandardScaler
-from preprocessing import select_features
+decoded_frame_sizes = "_".join(map(str, frame_sizes))
 
+initial_esn_params = {
+  'hidden_layer_size': 50, 'k_in': 10, 'input_scaling': 0.4,
+  'input_activation': 'identity', 'bias_scaling': 0.0,
+  'spectral_radius': 0.0, 'leakage': 1.0, 'k_rec': 10,
+  'reservoir_activation': 'tanh', 'bidirectional': False,
+  'alpha': 1e-5, 'random_state': 42}
 
-X, y, feature_trf = select_features(
-    df=training_data, input_features=["GrLivArea"], target="SalePrice")
-scaler = StandardScaler().fit(X)
-X_train = scaler.transform(X)
-y_train = y
+base_esn = ESNRegressor(**initial_esn_params)
+# Run model selection
+step1_params = {'input_scaling': uniform(loc=1e-2, scale=1),
+                'spectral_radius': uniform(loc=0, scale=2)}
+step2_params = {'leakage': uniform(loc=1e-2, scale=0.99)}
+step3_params = {'bias_scaling': uniform(loc=0, scale=2)}
+
+kwargs_step1 = {
+  'n_iter': 200, 'random_state': 42, 'verbose': 10, 'n_jobs': -1,
+  'scoring': make_scorer(cosine_distance, greater_is_better=False),
+  "cv": cv_vali}
+kwargs_step2 = {
+  'n_iter': 50, 'random_state': 42, 'verbose': 10, 'n_jobs': -1,
+  'scoring': make_scorer(cosine_distance, greater_is_better=False),
+  "cv": cv_vali}
+kwargs_step3 = {
+  'n_iter': 50, 'random_state': 42, 'verbose': 10, 'n_jobs': -1,
+  'scoring': make_scorer(cosine_distance, greater_is_better=False),
+  "cv": cv_vali}
+
+searches = [
+  ('step1', RandomizedSearchCV, step1_params, kwargs_step1),
+  ('step2', RandomizedSearchCV, step2_params, kwargs_step2),
+  ('step3', RandomizedSearchCV, step3_params, kwargs_step3)]
+
+try:
+  search = load(f'./results/sequential_search_basic_esn_'
+                f'{decoded_frame_sizes}.joblib')
+except FileNotFoundError:
+  search = SequentialSearchCV(base_esn, searches=searches).fit(X, y)
+  dump(search, f'./results/sequential_search_basic_esn_'
+               f'{decoded_frame_sizes}.joblib')
 ```
 
-We optimize a model using a random search.
+Next, we fit models with increased reservoir sizes and an optional bidirectional mode.
+For each configuration, we optimize the regularization parameter.
+
+One model for each fold is fitted to stay in line with the reference publications.
 
 ```python
-from sklearn.model_selection import RandomizedSearchCV
-from sklearn.utils.fixes import loguniform
-from scipy.stats import uniform
+kwargs_final = {
+  'n_iter': 50, 'random_state': 42, 'verbose': 1, 'n_jobs': -1,
+  'scoring': make_scorer(cosine_distance, greater_is_better=False)}
+param_distributions_final = {'alpha': loguniform(1e-5, 1e1)}
+hidden_layer_sizes = (
+  50, 100, 200, 400, 800, 1600, 3200, 6400, 12800, 25600)
+bi_directional = (False, True)
 
-from pyrcn.extreme_learning_machine import ELMRegressor
-
-
-model = RandomizedSearchCV(
-    estimator=ELMRegressor(input_activation="relu", random_state=42,
-                           hidden_layer_size=50),
-    param_distributions={"input_scaling": uniform(loc=0, scale=2),
-                         "bias_scaling": uniform(loc=0, scale=2),
-                         "alpha": loguniform(1e-5, 1e1)},
-    random_state=42, n_iter=200, refit=True).fit(X, y)
-```
-
-We load and transform test data.
-
-```python
-from file_handling import load_data
-
-
-test_data = load_data("../data/test.csv")
-X = feature_trf.transform(test_data)
-X_test = scaler.transform(X)
+for hidden_layer_size, bidirectional in product(
+        hidden_layer_sizes, bi_directional):
+  params = {"hidden_layer_size": hidden_layer_size,
+            "bidirectional": bidirectional}
+  LOGGER.info(hidden_layer_size, bidirectional)
+  for k, (train_index, vali_index) in enumerate(cv_vali.split()):
+    test_fold = np.zeros(
+      shape=(len(train_index) + len(vali_index), ), dtype=int)
+    test_fold[:len(train_index)] = -1
+    ps = PredefinedSplit(test_fold=test_fold)
+    try:
+      esn = load(f"./results/esn_{decoded_frame_sizes}_"
+                 f"{hidden_layer_size}_{bidirectional}_{k}.joblib")
+    except FileNotFoundError:
+      esn = RandomizedSearchCV(
+        estimator=clone(search.best_estimator_).set_params(
+          **params), cv=ps,
+        param_distributions=param_distributions_final,
+        **kwargs_final).fit(
+        X[np.hstack((train_index, vali_index))],
+        y[np.hstack((train_index, vali_index))])
+      dump(esn, f"./results/esn_{decoded_frame_sizes}_"
+                f"{hidden_layer_size}_{bidirectional}_{k}.joblib")
 ```
 
 Finally, we predict the test data.
 
 ```python
-y_pred = model.predict(X_test)
+y_pred = esn.predict(X_test)
 ```
 
 After you finished your experiments, please do not forget to deactivate the venv by 
@@ -163,9 +240,13 @@ order to reproduce all results in the paper.
 If you want to suppress any options, simply remove the particular option.
 
 ## Acknowledgements
-This research was supported by
 ```
-Nobody
+The parameter optimizations were performed on a Bull Cluster at the Center for 
+Information Services and High Performance Computing (ZIH) at TU Dresden.
+
+This research was financed by Europäischer Sozialfonds (ESF) and the Free State of 
+Saxony (Application number: 100327771) and Ghent University.
+
 ```
 
 
@@ -174,17 +255,20 @@ This program is licensed under the BSD 3-Clause License. If you in any way use t
 code for research that results in publications, please cite our original
 article listed above.
 
-More information about licensing can be found [here](https://docs.github.com/en/repositories/managing-your-repositorys-settings-and-features/customizing-your-repository/licensing-a-repository)
-and [here](https://en.wikipedia.org/wiki/License).
-
 You can use the following BibTeX entry
 ```
-@inproceedings{src:Steiner-22,
-  author    = "Peter Steiner",
-  title     = "Template Repository for Research Papers",
-  booktitle = "Proceedings of the Research Seminar",
-  year      = 2022,
-  pages     = "1--6",
+@INPROCEEDINGS{9413205,
+  author={Steiner, Peter and Jalalvand, Azarakhsh and Stone, Simon and Birkholz, Peter},
+  booktitle={2020 25th International Conference on Pattern Recognition (ICPR)},
+  title={Feature Engineering and Stacked Echo State Networks for Musical Onset Detection},
+  year={2021},
+  volume={},
+  number={},
+  pages={9537--9544},
+  keywords={},
+  doi={10.1109/ICPR48806.2021.9413205},
+  ISSN={1051-4651},
+  month={Jan},
 }
 ```
 ## Appendix
