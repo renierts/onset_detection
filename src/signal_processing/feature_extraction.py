@@ -1,6 +1,5 @@
 """Feature Extraction utilities."""
 import librosa
-from sklearn.base import BaseEstimator, TransformerMixin
 from madmom.processors import SequentialProcessor, ParallelProcessor
 from madmom.audio import SignalProcessor, FramedSignalProcessor
 from madmom.audio.stft import ShortTimeFourierTransformProcessor
