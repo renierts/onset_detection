@@ -13,19 +13,15 @@ import seaborn as sns
 import madmom
 
 from sklearn.model_selection import RandomizedSearchCV
-from sklearn.model_selection import PredefinedSplit
 from sklearn.metrics import make_scorer
-from sklearn.utils.fixes import loguniform
-from sklearn.base import clone
 from scipy.stats import uniform
 from dataset import OnsetDataset
+from input_to_node import ClusterInputToNode
 from metrics import cosine_distance
 from signal_processing import OnsetPreProcessor
 from model_selection import PredefinedTrainValidationTestSplit
 import numpy as np
 from joblib import dump, load
-import pandas as pd
-from itertools import product
 
 from pyrcn.echo_state_network import ESNRegressor
 from pyrcn.model_selection import SequentialSearchCV
@@ -136,143 +132,17 @@ def main(plot=False, frame_sizes=(1024, 2048, 4096), num_bands=(3, 6, 12)):
                      f'{decoded_frame_sizes}.joblib')
     LOGGER.info("... done!")
 
-    if plot:
-        df = pd.DataFrame(search.all_cv_results_["step1"])
-        fig, axs = plt.subplots()
-        sns.scatterplot(
-            data=df, x="param_spectral_radius", y="param_input_scaling",
-            hue="mean_test_score", ax=axs, palette="RdBu")
+    base_esn = ESNRegressor(input_to_node=ClusterInputToNode(),
+                            **initial_esn_params)
 
-        norm = plt.Normalize(
-            df["mean_test_score"].min(), df["mean_test_score"].max())
-        sm = plt.cm.ScalarMappable(cmap="RdBu", norm=norm)
-        sm.set_array([])
-        plt.xlim((0, 2.05))
-        plt.ylim((0, 1.05))
-        # Remove the legend and add a colorbar
-        axs.get_legend().remove()
-        axs.figure.colorbar(sm)
+    try:
+        search = load(f'./results/sequential_search_kmeans_esn_'
+                      f'{decoded_frame_sizes}.joblib')
+    except FileNotFoundError:
+        search = SequentialSearchCV(base_esn, searches=searches).fit(X, y)
+        dump(search, f'./results/sequential_search_kmeans_esn_'
+                     f'{decoded_frame_sizes}.joblib')
 
-        df = pd.DataFrame(search.all_cv_results_["step2"])
-        fig, axs = plt.subplots()
-        sns.lineplot(data=df, x="param_leakage", y="mean_test_score", ax=axs)
-        axs.set_xlim((0.0, 1.0))
-
-        df = pd.DataFrame(search.all_cv_results_["step3"])
-        fig, axs = plt.subplots()
-        sns.lineplot(data=df, x="param_bias_scaling", y="mean_test_score",
-                     ax=axs)
-        axs.set_xlim((0.0, 1.0))
-
-    kwargs_final = {
-        'n_iter': 50, 'random_state': 42, 'verbose': 1, 'n_jobs': -1,
-        'scoring': make_scorer(cosine_distance, greater_is_better=False)}
-    param_distributions_final = {'alpha': loguniform(1e-5, 1e1)}
-    hidden_layer_sizes = (
-        50, 100, 200, 400, 800, 1600, 3200, 6400, 12800, 25600)
-    bi_directional = (False, True)
-    thresholds = (0.1, 0.2, 0.3, 0.4, 0.5, 0.6, 0.7, 0.8, 0.9, 1.0)
-
-    for hidden_layer_size, bidirectional in product(
-            hidden_layer_sizes, bi_directional):
-        params = {"hidden_layer_size": hidden_layer_size,
-                  "bidirectional": bidirectional}
-        LOGGER.info(hidden_layer_size, bidirectional)
-        for k, (train_index, vali_index) in enumerate(cv_vali.split()):
-            test_fold = np.zeros(
-                shape=(len(train_index) + len(vali_index), ), dtype=int)
-            test_fold[:len(train_index)] = -1
-            ps = PredefinedSplit(test_fold=test_fold)
-            try:
-                esn = load(f"./results/esn_{decoded_frame_sizes}_"
-                           f"{hidden_layer_size}_{bidirectional}_{k}.joblib")
-            except FileNotFoundError:
-                esn = RandomizedSearchCV(
-                    estimator=clone(search.best_estimator_).set_params(
-                        **params), cv=ps,
-                    param_distributions=param_distributions_final,
-                    **kwargs_final).fit(
-                    X[np.hstack((train_index, vali_index))],
-                    y[np.hstack((train_index, vali_index))])
-                dump(esn, f"./results/esn_{decoded_frame_sizes}_"
-                          f"{hidden_layer_size}_{bidirectional}_{k}.joblib")
-
-    columns = [
-        "param_hidden_layer_size", "param_bidirectional", "param_threshold",
-        "params",
-        "split0_avg_test_score", "split1_avg_test_score",
-        "split2_avg_test_score", "split3_avg_test_score",
-        "split4_avg_test_score", "split5_avg_test_score",
-        "split6_avg_test_score", "split7_avg_test_score",
-        "split0_sum_test_score", "split1_sum_test_score",
-        "split2_sum_test_score", "split3_sum_test_score",
-        "split4_sum_test_score", "split5_sum_test_score",
-        "split6_sum_test_score", "split7_sum_test_score",
-        "split0_avg_train_score", "split1_avg_train_score",
-        "split2_avg_train_score", "split3_avg_train_score",
-        "split4_avg_train_score", "split5_avg_train_score",
-        "split6_avg_train_score", "split7_avg_train_score",
-        "split0_sum_train_score", "split1_sum_train_score",
-        "split2_sum_train_score", "split3_sum_train_score",
-        "split4_sum_train_score", "split5_sum_train_score",
-        "split6_sum_train_score", "split7_sum_train_score",
-        "mean_avg_test_score", "mean_sum_test_score",
-        "mean_avg_train_score", "mean_sum_train_score",
-        "std_avg_test_score", "std_sum_test_score",
-        "std_avg_train_score", "std_sum_train_score"]
-    df_results = pd.DataFrame(columns=columns)
-    df_results[
-        ["param_hidden_layer_size", "param_bidirectional", "param_threshold",
-         "params"]] = [[hidden_layer_size, bidirectional, threshold,
-                        {"hidden_layer_size": hidden_layer_size,
-                         "bidirectional": bidirectional,
-                         "threshold": threshold}]
-                       for hidden_layer_size, bidirectional, threshold in
-                       product(hidden_layer_sizes, bi_directional, thresholds)]
-
-    for hidden_layer_size, bidirectional in product(
-            hidden_layer_sizes, bi_directional):
-        params = {"hidden_layer_size": hidden_layer_size,
-                  "bidirectional": bidirectional}
-        print(hidden_layer_size, bidirectional)
-        for k, (train_index, test_index) in enumerate(cv_test.split()):
-            X_train, X_test = X[train_index], X[test_index]
-            y_train, y_test = y[train_index], y[test_index]
-            esn = load(f"../results/esn_{decoded_frame_sizes}_"
-                       f"{hidden_layer_size}_{bidirectional}_{k}.joblib")
-            y_train_pred = esn.predict(X_train)
-            y_test_pred = esn.predict(X_test)
-            for thr in thresholds:
-                rnn_peak_picking = \
-                    madmom.features.onsets.OnsetPeakPickingProcessor(
-                        threshold=thr, pre_max=0.01, post_max=0.01,
-                        smooth=0.07, combine=0.03)
-                detections = [rnn_peak_picking(act) for act in y_train_pred]
-                annotations = [
-                    ann for ann in np.asarray(
-                        dataset.annotations, dtype=object)[train_index]]
-                se, me = evaluate_onsets(detections, annotations)
-                df_results.loc[
-                    (df_results['param_hidden_layer_size'] == hidden_layer_size) &
-                    (df_results['param_bidirectional'] == bidirectional) &
-                    (df_results['param_threshold'] == thr), f"split{k}_avg_train_score"] = me.metrics
-                df_results.loc[
-                    (df_results['param_hidden_layer_size'] == hidden_layer_size) &
-                    (df_results['param_bidirectional'] == bidirectional) &
-                    (df_results['param_threshold'] == thr), f"split{k}_sum_train_score"] = se.metrics
-                detections = [rnn_peak_picking(act) for act in y_test_pred]
-                annotations = [
-                    ann for ann in np.asarray(
-                        dataset.annotations, dtype=object)[test_index]]
-                se, me = evaluate_onsets(detections, annotations)
-                df_results.loc[
-                    (df_results['param_hidden_layer_size'] == hidden_layer_size) &
-                    (df_results['param_bidirectional'] == bidirectional) &
-                    (df_results['param_threshold'] == thr), f"split{k}_avg_test_score"] = me.metrics
-                df_results.loc[
-                    (df_results['param_hidden_layer_size'] == hidden_layer_size) &
-                    (df_results['param_bidirectional'] == bidirectional) &
-                    (df_results['param_threshold'] == thr), f"split{k}_sum_test_score"] = se.metrics
 
     if plot:
         plt.show()
