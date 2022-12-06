@@ -159,25 +159,25 @@ def main(plot=False, frame_sizes=(1024, 2048, 4096), num_bands=(3, 6, 12)):
             hidden_layer_sizes, bi_directional):
         params = {"hidden_layer_size": hidden_layer_size,
                   "bidirectional": bidirectional}
-    for k, (train_index, vali_index) in enumerate(cv_vali.split()):
-        test_fold = np.zeros(
-            shape=(len(train_index) + len(vali_index), ), dtype=int)
-        test_fold[:len(train_index)] = -1
-        ps = PredefinedSplit(test_fold=test_fold)
-        try:
-            esn = load(f"./results/km_esn_{decoded_frame_sizes}_"
-                       f"{hidden_layer_size}_{bidirectional}_{k}.joblib")
-            print(esn.best_estimator_.regressor.alpha)
-        except FileNotFoundError:
-            esn = RandomizedSearchCV(
-                estimator=clone(search.best_estimator_).set_params(
-                    **params), cv=ps,
-                param_distributions=param_distributions_final,
-                **kwargs_final).fit(
-                X[np.hstack((train_index, vali_index))],
-                y[np.hstack((train_index, vali_index))])
-            dump(esn, f"./results/km_esn_{decoded_frame_sizes}_"
-                      f"{hidden_layer_size}_{bidirectional}_{k}.joblib")
+        for k, (train_index, vali_index) in enumerate(cv_vali.split()):
+            test_fold = np.zeros(
+                shape=(len(train_index) + len(vali_index), ), dtype=int)
+            test_fold[:len(train_index)] = -1
+            ps = PredefinedSplit(test_fold=test_fold)
+            try:
+                esn = load(f"./results/km_esn_{decoded_frame_sizes}_"
+                           f"{hidden_layer_size}_{bidirectional}_{k}.joblib")
+                print(esn.best_estimator_.regressor.alpha)
+            except FileNotFoundError:
+                esn = RandomizedSearchCV(
+                    estimator=clone(search.best_estimator_).set_params(
+                        **params), cv=ps,
+                    param_distributions=param_distributions_final,
+                    **kwargs_final).fit(
+                    X[np.hstack((train_index, vali_index))],
+                    y[np.hstack((train_index, vali_index))])
+                dump(esn, f"./results/km_esn_{decoded_frame_sizes}_"
+                          f"{hidden_layer_size}_{bidirectional}_{k}.joblib")
 
     if plot:
         plt.show()
