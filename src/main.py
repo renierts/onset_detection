@@ -13,8 +13,11 @@ import seaborn as sns
 import madmom
 
 from sklearn.model_selection import RandomizedSearchCV
+from sklearn.model_selection import PredefinedSplit
 from sklearn.metrics import make_scorer
 from scipy.stats import uniform
+from sklearn.base import clone
+from sklearn.utils.fixes import loguniform
 from dataset import OnsetDataset
 from input_to_node import ClusterInputToNode
 from metrics import cosine_distance
@@ -22,6 +25,7 @@ from signal_processing import OnsetPreProcessor
 from model_selection import PredefinedTrainValidationTestSplit
 import numpy as np
 from joblib import dump, load
+from itertools import product
 
 from pyrcn.echo_state_network import ESNRegressor
 from pyrcn.model_selection import SequentialSearchCV
@@ -143,6 +147,37 @@ def main(plot=False, frame_sizes=(1024, 2048, 4096), num_bands=(3, 6, 12)):
         dump(search, f'./results/sequential_search_kmeans_esn_'
                      f'{decoded_frame_sizes}.joblib')
 
+    kwargs_final = {
+        'n_iter': 50, 'random_state': 42, 'verbose': 1, 'n_jobs': -1,
+        'scoring': make_scorer(cosine_distance, greater_is_better=False)}
+    param_distributions_final = {'alpha': loguniform(1e-5, 1e1)}
+    hidden_layer_sizes = (
+        50, 100, 200, 400, 800, 1600, 3200, 6400, 12800, 25600)
+    bi_directional = (False, True)
+
+    for hidden_layer_size, bidirectional in product(
+            hidden_layer_sizes, bi_directional):
+        params = {"hidden_layer_size": hidden_layer_size,
+                  "bidirectional": bidirectional}
+    for k, (train_index, vali_index) in enumerate(cv_vali.split()):
+        test_fold = np.zeros(
+            shape=(len(train_index) + len(vali_index), ), dtype=int)
+        test_fold[:len(train_index)] = -1
+        ps = PredefinedSplit(test_fold=test_fold)
+        try:
+            esn = load(f"./results/km_esn_{decoded_frame_sizes}_"
+                       f"{hidden_layer_size}_{bidirectional}_{k}.joblib")
+            print(esn.best_estimator_.regressor.alpha)
+        except FileNotFoundError:
+            esn = RandomizedSearchCV(
+                estimator=clone(search.best_estimator_).set_params(
+                    **params), cv=ps,
+                param_distributions=param_distributions_final,
+                **kwargs_final).fit(
+                X[np.hstack((train_index, vali_index))],
+                y[np.hstack((train_index, vali_index))])
+            dump(esn, f"./results/km_esn_{decoded_frame_sizes}_"
+                      f"{hidden_layer_size}_{bidirectional}_{k}.joblib")
 
     if plot:
         plt.show()
