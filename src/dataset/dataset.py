@@ -51,8 +51,12 @@ class OnsetDataset(object):
             Path(os.path.join(self.path, "annotations")).rglob(
                 f"*{annotation_suffix}"))
         # match annotation to audio files
+        unlabeled_audio_files = sorted(
+            Path(os.path.join(self.path, "unlabeled_audio")).rglob(
+                f"*{audio_suffix}"))
         self.files = []
         self.audio_files = []
+        self.unlabeled_audio_files = []
         self.annotation_files = []
         for audio_file, annotation_file in zip(audio_files, annotation_files):
             base_audio_file = os.path.splitext(os.path.basename(audio_file))
@@ -67,6 +71,9 @@ class OnsetDataset(object):
             else:
                 warnings.warn(
                     f"skipping {annotation_file}, no audio file found")
+        for audio_file in unlabeled_audio_files:
+            base_audio_file = os.path.splitext(os.path.basename(audio_file))
+            self.unlabeled_audio_files.append(audio_file)
         self._load_splits()
         self._load_annotations()
 
@@ -130,6 +137,27 @@ class OnsetDataset(object):
                 audio_file, annotation, pre_processor, kernel)
         return X, y
 
+    def return_X(self, pre_processor):
+        """
+        Return the dataset in a PyRCN-conform way.
+
+        Parameters
+        ----------
+        pre_processor : object
+            The object to preprocess each audio file.
+
+        Returns
+        -------
+        X : np.ndarray(shape=(n_sequences, ), dtype=object)
+            The extracted sequences. Each element of X is a numpy array of
+            shape (n_samples, n_features), where n_samples is the sequence
+            length.
+        """
+        X = np.empty(shape=(len(self.unlabeled_audio_files), ), dtype=object)
+        for k, audio_file in enumerate(self.unlabeled_audio_files):
+            X[k] = self._pre_process_unlabeled(audio_file, pre_processor)
+        return X
+
     @staticmethod
     def _pre_process(audio_file, annotation, pre_processor,
                      kernel=(0.5, 1.0, 0.5)):
@@ -161,6 +189,26 @@ class OnsetDataset(object):
             annotation, fps=100, length=X.shape[0])
         y = madmom.audio.signal.smooth(y, np.array(kernel))
         return X, y
+
+    @staticmethod
+    def _pre_process_unlabeled(audio_file, pre_processor):
+        """
+        Pre-process the dataset.
+
+        Parameters
+        ----------
+        audio_file : Union[Path, str]
+            Full path to the audio file to be pre-processed.
+        pre_processor : object
+            The object to preprocess each audio file.
+
+        Returns
+        -------
+        X : np.ndarray, shape = (n_samples, n_features)
+            The features extracted from the audio file.
+        """
+        X = pre_processor(str(audio_file))
+        return X
 
     def _load_annotations(self):
         """Load the onset annotations from an annotation file."""
