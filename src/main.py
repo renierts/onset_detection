@@ -152,8 +152,8 @@ def main(plot=False, frame_sizes=(1024, 2048, 4096), num_bands=(3, 6, 12)):
         'scoring': make_scorer(cosine_distance, greater_is_better=False)}
     param_distributions_final = {'alpha': loguniform(1e-5, 1e1)}
     hidden_layer_sizes = (
-        # 50, 100, 200, 400, 800, 1600,
-        3200, 6400, 12800, 25600)
+        # 50, 100, 200, 400, 800,
+        1600, 3200, 6400, 12800, 25600)
     bi_directional = (False, True)
 
     for hidden_layer_size, bidirectional in product(
