@@ -1,1 +1,1 @@
-from ._input_to_node import ClusterInputToNode
+from ._input_to_node import ClusterInputToNode, ClusterAttentionInputToNode
