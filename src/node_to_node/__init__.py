@@ -1,2 +1,1 @@
-from ._node_to_node import (TransitionNodeToNode, SCRNodeToNode, DLRNodeToNode,
-                            DLRBNodeToNode)
+from ._node_to_node import (SCRNodeToNode, DLRNodeToNode, DLRBNodeToNode)
