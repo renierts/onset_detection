@@ -1,6 +1,5 @@
 import numpy as np
 import scipy
-from itertools import pairwise
 from typing import Literal, Union
 from pyrcn.base.blocks import NodeToNode
 from sklearn.utils.validation import _deprecate_positional_args
