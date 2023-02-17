@@ -19,7 +19,8 @@ from scipy.stats import uniform
 from sklearn.base import clone
 from sklearn.utils.fixes import loguniform
 from dataset import OnsetDataset
-from input_to_node import ClusterInputToNode, SimpleInputToNode
+from input_to_node import (ClusterInputToNode, SimpleInputToNode,
+                           ClusterAttentionInputToNode)
 from node_to_node import DLRNodeToNode, DLRBNodeToNode, SCRNodeToNode
 from metrics import cosine_distance
 from signal_processing import OnsetPreProcessor
@@ -724,6 +725,95 @@ def main(fit_basic_esn=False, fit_kmeans_esn=False,
                     dump(esn, f"./results/km_esn_{decoded_frame_sizes}_"
                               f"{hidden_layer_size}_{bidirectional}_{k}"
                               f".joblib")
+
+    if fit_attention_kmeans_esn:
+        LOGGER.info(f"Creating Attention [0, 1] KM-ESN pipeline...")
+        initial_esn_params = {
+            'hidden_layer_size': 500, 'k_in': 10, 'input_scaling': 0.4,
+            'input_activation': 'identity', 'bias_scaling': 0.4,
+            'spectral_radius': 0.0, 'leakage': 1.0, 'k_rec': 10,
+            'reservoir_activation': 'tanh', 'bidirectional': False,
+            'alpha': 1e-5, 'random_state': 42}
+
+        base_esn = ESNRegressor(input_to_node=ClusterAttentionInputToNode(),
+                                **initial_esn_params)
+
+        LOGGER.info(f"Performing the optimization...")
+        step1_params = {'input_scaling': uniform(loc=1e-2, scale=1),
+                        'spectral_radius': uniform(loc=0, scale=2)}
+        step2_params = {'leakage': uniform(1e-1, 1e0)}
+        step3_params = {'bias_scaling': uniform(loc=0, scale=2)}
+
+        kwargs_step1 = {
+            'n_iter': 200, 'random_state': 42, 'verbose': 1, 'n_jobs': -1,
+            'scoring': make_scorer(cosine_distance, greater_is_better=False),
+            "cv": cv_vali}
+        kwargs_step2 = {
+            'n_iter': 50, 'random_state': 42, 'verbose': 1, 'n_jobs': -1,
+            'scoring': make_scorer(cosine_distance, greater_is_better=False),
+            "cv": cv_vali}
+        kwargs_step3 = {
+            'n_iter': 50, 'random_state': 42, 'verbose': 1, 'n_jobs': -1,
+            'scoring': make_scorer(cosine_distance, greater_is_better=False),
+            "cv": cv_vali}
+
+        searches = [
+            ('step1', RandomizedSearchCV, step1_params, kwargs_step1),
+            ('step2', RandomizedSearchCV, step2_params, kwargs_step2),
+            ('step3', RandomizedSearchCV, step3_params, kwargs_step3)]
+
+        try:
+            search = load(f'./results/sequential_search_kmeans_esn_attention_'
+                          f'0_1_{decoded_frame_sizes}.joblib')
+        except FileNotFoundError:
+            search = SequentialSearchCV(base_esn, searches=searches).fit(X, y)
+            dump(search, f'./results/sequential_search_kmeans_esn_attention_'
+                         f'0_1_{decoded_frame_sizes}.joblib')
+        LOGGER.info("... done!")
+    if fit_attention_kmeans_esn:
+        LOGGER.info(f"Creating Attention [-1, 1] KM-ESN pipeline...")
+        initial_esn_params = {
+            'hidden_layer_size': 500, 'k_in': 10, 'input_scaling': 0.4,
+            'input_activation': 'identity', 'bias_scaling': 0.4,
+            'spectral_radius': 0.0, 'leakage': 1.0, 'k_rec': 10,
+            'reservoir_activation': 'tanh', 'bidirectional': False,
+            'alpha': 1e-5, 'random_state': 42, 'mode': 'bipolar'}
+
+        base_esn = ESNRegressor(input_to_node=ClusterAttentionInputToNode(),
+                                **initial_esn_params)
+
+        LOGGER.info(f"Performing the optimization...")
+        step1_params = {'input_scaling': uniform(loc=1e-2, scale=1),
+                        'spectral_radius': uniform(loc=0, scale=2)}
+        step2_params = {'leakage': uniform(1e-1, 1e0)}
+        step3_params = {'bias_scaling': uniform(loc=0, scale=2)}
+
+        kwargs_step1 = {
+            'n_iter': 200, 'random_state': 42, 'verbose': 1, 'n_jobs': -1,
+            'scoring': make_scorer(cosine_distance, greater_is_better=False),
+            "cv": cv_vali}
+        kwargs_step2 = {
+            'n_iter': 50, 'random_state': 42, 'verbose': 1, 'n_jobs': -1,
+            'scoring': make_scorer(cosine_distance, greater_is_better=False),
+            "cv": cv_vali}
+        kwargs_step3 = {
+            'n_iter': 50, 'random_state': 42, 'verbose': 1, 'n_jobs': -1,
+            'scoring': make_scorer(cosine_distance, greater_is_better=False),
+            "cv": cv_vali}
+
+        searches = [
+            ('step1', RandomizedSearchCV, step1_params, kwargs_step1),
+            ('step2', RandomizedSearchCV, step2_params, kwargs_step2),
+            ('step3', RandomizedSearchCV, step3_params, kwargs_step3)]
+
+        try:
+            search = load(f'./results/sequential_search_kmeans_esn_attention_'
+                          f'-1_1_{decoded_frame_sizes}.joblib')
+        except FileNotFoundError:
+            search = SequentialSearchCV(base_esn, searches=searches).fit(X, y)
+            dump(search, f'./results/sequential_search_kmeans_esn_attention_'
+                         f'-1_1_{decoded_frame_sizes}.joblib')
+        LOGGER.info("... done!")
 
 
 if __name__ == "__main__":
