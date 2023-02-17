@@ -144,6 +144,144 @@ def main(plot=False, frame_sizes=(1024, 2048, 4096), num_bands=(3, 6, 12)):
         'reservoir_activation': 'tanh', 'bidirectional': False,
         'alpha': 1e-5, 'random_state': 42}
 
+    base_esn = ESNRegressor(input_to_node=ClusterInputToNode(),
+                            node_to_node=DLRNodeToNode(),
+                            **initial_esn_params)
+
+    LOGGER.info(f"Performing the optimization...")
+    step1_params = {'input_scaling': uniform(loc=1e-2, scale=1),
+                    'forward_weight': uniform(loc=0, scale=2)}
+    step2_params = {'leakage': uniform(1e-1, 1e0)}
+    step3_params = {'bias_scaling': uniform(loc=0, scale=2)}
+
+    kwargs_step1 = {
+        'n_iter': 200, 'random_state': 42, 'verbose': 1, 'n_jobs': -1,
+        'scoring': make_scorer(cosine_distance, greater_is_better=False),
+        "cv": cv_vali}
+    kwargs_step2 = {
+        'n_iter': 50, 'random_state': 42, 'verbose': 1, 'n_jobs': -1,
+        'scoring': make_scorer(cosine_distance, greater_is_better=False),
+        "cv": cv_vali}
+    kwargs_step3 = {
+        'n_iter': 50, 'random_state': 42, 'verbose': 1, 'n_jobs': -1,
+        'scoring': make_scorer(cosine_distance, greater_is_better=False),
+        "cv": cv_vali}
+
+    searches = [
+        ('step1', RandomizedSearchCV, step1_params, kwargs_step1),
+        ('step2', RandomizedSearchCV, step2_params, kwargs_step2),
+        ('step3', RandomizedSearchCV, step3_params, kwargs_step3)]
+
+    try:
+        search = load(f'./results/sequential_search_dlr_kmeans_esn_'
+                      f'{decoded_frame_sizes}.joblib')
+    except FileNotFoundError:
+        search = SequentialSearchCV(base_esn, searches=searches).fit(X, y)
+        dump(search, f'./results/sequential_search_dlr_kmeans_esn_'
+                     f'{decoded_frame_sizes}.joblib')
+    LOGGER.info("... done!")
+
+    initial_esn_params = {
+        'hidden_layer_size': 500, 'k_in': 10, 'input_scaling': 0.4,
+        'input_activation': 'identity', 'bias_scaling': 0.0,
+        'spectral_radius': 1.0, 'leakage': 1.0, 'k_rec': 10,
+        'reservoir_activation': 'tanh', 'bidirectional': False,
+        'alpha': 1e-5, 'random_state': 42}
+
+    base_esn = ESNRegressor(input_to_node=ClusterInputToNode(),
+                            node_to_node=SCRNodeToNode(),
+                            **initial_esn_params)
+
+    LOGGER.info(f"Performing the optimization...")
+    step1_params = {'input_scaling': uniform(loc=1e-2, scale=1),
+                    'forward_weight': uniform(loc=0, scale=2)}
+    step2_params = {'leakage': uniform(1e-1, 1e0)}
+    step3_params = {'bias_scaling': uniform(loc=0, scale=2)}
+
+    kwargs_step1 = {
+        'n_iter': 200, 'random_state': 42, 'verbose': 1, 'n_jobs': -1,
+        'scoring': make_scorer(cosine_distance, greater_is_better=False),
+        "cv": cv_vali}
+    kwargs_step2 = {
+        'n_iter': 50, 'random_state': 42, 'verbose': 1, 'n_jobs': -1,
+        'scoring': make_scorer(cosine_distance, greater_is_better=False),
+        "cv": cv_vali}
+    kwargs_step3 = {
+        'n_iter': 50, 'random_state': 42, 'verbose': 1, 'n_jobs': -1,
+        'scoring': make_scorer(cosine_distance, greater_is_better=False),
+        "cv": cv_vali}
+
+    searches = [
+        ('step1', RandomizedSearchCV, step1_params, kwargs_step1),
+        ('step2', RandomizedSearchCV, step2_params, kwargs_step2),
+        ('step3', RandomizedSearchCV, step3_params, kwargs_step3)]
+
+    try:
+        search = load(f'./results/sequential_search_scr_kmeans_esn_'
+                      f'{decoded_frame_sizes}.joblib')
+    except FileNotFoundError:
+        search = SequentialSearchCV(base_esn, searches=searches).fit(X, y)
+        dump(search, f'./results/sequential_search_scr_kmeans_esn_'
+                     f'{decoded_frame_sizes}.joblib')
+    LOGGER.info("... done!")
+
+    initial_esn_params = {
+        'hidden_layer_size': 500, 'k_in': 10, 'input_scaling': 0.4,
+        'input_activation': 'identity', 'bias_scaling': 0.0,
+        'spectral_radius': 1.0, 'leakage': 1.0, 'k_rec': 10,
+        'reservoir_activation': 'tanh', 'bidirectional': False,
+        'alpha': 1e-5, 'random_state': 42}
+
+    base_esn = ESNRegressor(input_to_node=ClusterInputToNode(),
+                            node_to_node=DLRBNodeToNode(),
+                            **initial_esn_params)
+
+    LOGGER.info(f"Performing the optimization...")
+    step1_params = {'input_scaling': uniform(loc=1e-2, scale=1)}
+    step2_params = {'forward_weight': uniform(loc=0, scale=2),
+                    'feedback_weight': uniform(loc=0, scale=2)}
+    step3_params = {'leakage': uniform(1e-1, 1e0)}
+    step4_params = {'bias_scaling': uniform(loc=0, scale=2)}
+
+    kwargs_step1 = {
+        'n_iter': 50, 'random_state': 42, 'verbose': 1, 'n_jobs': -1,
+        'scoring': make_scorer(cosine_distance, greater_is_better=False),
+        "cv": cv_vali}
+    kwargs_step2 = {
+        'n_iter': 200, 'random_state': 42, 'verbose': 1, 'n_jobs': -1,
+        'scoring': make_scorer(cosine_distance, greater_is_better=False),
+        "cv": cv_vali}
+    kwargs_step3 = {
+        'n_iter': 50, 'random_state': 42, 'verbose': 1, 'n_jobs': -1,
+        'scoring': make_scorer(cosine_distance, greater_is_better=False),
+        "cv": cv_vali}
+    kwargs_step4 = {
+        'n_iter': 50, 'random_state': 42, 'verbose': 1, 'n_jobs': -1,
+        'scoring': make_scorer(cosine_distance, greater_is_better=False),
+        "cv": cv_vali}
+
+    searches = [
+        ('step1', RandomizedSearchCV, step1_params, kwargs_step1),
+        ('step2', RandomizedSearchCV, step2_params, kwargs_step2),
+        ('step3', RandomizedSearchCV, step3_params, kwargs_step3),
+        ('step4', RandomizedSearchCV, step4_params, kwargs_step4)]
+
+    try:
+        search = load(f'./results/sequential_search_dlrb_kmeans_esn_'
+                      f'{decoded_frame_sizes}.joblib')
+    except FileNotFoundError:
+        search = SequentialSearchCV(base_esn, searches=searches).fit(X, y)
+        dump(search, f'./results/sequential_search_dlrb_kmeans_esn_'
+                     f'{decoded_frame_sizes}.joblib')
+    LOGGER.info("... done!")
+
+    initial_esn_params = {
+        'hidden_layer_size': 500, 'k_in': 10, 'input_scaling': 0.4,
+        'input_activation': 'identity', 'bias_scaling': 0.0,
+        'spectral_radius': 1.0, 'leakage': 1.0, 'k_rec': 10,
+        'reservoir_activation': 'tanh', 'bidirectional': False,
+        'alpha': 1e-5, 'random_state': 42}
+
     base_esn = ESNRegressor(input_to_node=SimpleInputToNode(),
                             node_to_node=DLRNodeToNode(),
                             **initial_esn_params)
