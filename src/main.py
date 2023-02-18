@@ -694,6 +694,31 @@ def main(fit_basic_esn=False, fit_kmeans_esn=False,
             dump(search, f'./results/sequential_search_kmeans_esn_attention_'
                          f'0_1_{decoded_frame_sizes}.joblib')
         LOGGER.info("... done!")
+        kwargs_final = {
+            "cv": cv_vali, 'n_iter': 50, 'random_state': 42, 'verbose': 10,
+            'n_jobs': -1,
+            'scoring': make_scorer(cosine_distance, greater_is_better=False)}
+        param_distributions_final = {'alpha': loguniform(1e-5, 1e1)}
+        hidden_layer_sizes = (50, 100, 200, 400, 800, 1600, 3200, 6400,
+                              12800, 25600)
+        bi_directional = (False, True)
+        for hidden_layer_size, bidirectional in product(
+                hidden_layer_sizes, bi_directional):
+            params = {"hidden_layer_size": hidden_layer_size,
+                      "bidirectional": bidirectional}
+            try:
+                esn = load(f"./results/kmeans_esn_attention_0_1_"
+                           f"{decoded_frame_sizes}_{hidden_layer_size}_"
+                           f"{bidirectional}.joblib")
+            except FileNotFoundError:
+                esn = RandomizedSearchCV(
+                    estimator=clone(
+                        search.best_estimator_).set_params(**params),
+                    param_distributions=param_distributions_final,
+                    **kwargs_final).fit(X, y)
+                dump(esn, f"./results/kmeans_esn_attention_0_1_"
+                          f"{decoded_frame_sizes}_{hidden_layer_size}_"
+                          f"{bidirectional}.joblib")
 
     if fit_attention_kmeans_esn:
         LOGGER.info(f"Creating Attention [-1, 1] KM-ESN pipeline...")
@@ -739,6 +764,31 @@ def main(fit_basic_esn=False, fit_kmeans_esn=False,
             dump(search, f'./results/sequential_search_kmeans_esn_attention_'
                          f'-1_1_{decoded_frame_sizes}.joblib')
         LOGGER.info("... done!")
+        kwargs_final = {
+            "cv": cv_vali, 'n_iter': 50, 'random_state': 42, 'verbose': 10,
+            'n_jobs': -1,
+            'scoring': make_scorer(cosine_distance, greater_is_better=False)}
+        param_distributions_final = {'alpha': loguniform(1e-5, 1e1)}
+        hidden_layer_sizes = (50, 100, 200, 400, 800, 1600, 3200, 6400,
+                              12800, 25600)
+        bi_directional = (False, True)
+        for hidden_layer_size, bidirectional in product(
+                hidden_layer_sizes, bi_directional):
+            params = {"hidden_layer_size": hidden_layer_size,
+                      "bidirectional": bidirectional}
+            try:
+                esn = load(f"./results/kmeans_esn_attention_-1_1_"
+                           f"{decoded_frame_sizes}_{hidden_layer_size}_"
+                           f"{bidirectional}.joblib")
+            except FileNotFoundError:
+                esn = RandomizedSearchCV(
+                    estimator=clone(
+                        search.best_estimator_).set_params(**params),
+                    param_distributions=param_distributions_final,
+                    **kwargs_final).fit(X, y)
+                dump(esn, f"./results/kmeans_esn_attention_-1_1_"
+                          f"{decoded_frame_sizes}_{hidden_layer_size}_"
+                          f"{bidirectional}.joblib")
 
 
 if __name__ == "__main__":
