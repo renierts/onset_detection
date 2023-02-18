@@ -185,12 +185,16 @@ def main(fit_basic_esn=False, fit_kmeans_esn=False,
                     **kwargs_final).fit(X, y)
                 dump(esn, f"./results/basic_esn_{decoded_frame_sizes}_"
                           f"{hidden_layer_size}_{bidirectional}.joblib")
-            final_scores = cross_validate(
-                esn.best_estimator_, X, y, scoring=custom_loss_function,
-                cv=cv_test, n_jobs=-1, return_train_score=True)
-            dump(final_scores, f"./results/basic_esn_{decoded_frame_sizes}_"
-                               f"{hidden_layer_size}_{bidirectional}"
-                               f"_scores.joblib")
+            try:
+                load(f"./results/basic_esn_{decoded_frame_sizes}"
+                     f"_{hidden_layer_size}_{bidirectional}_scores.joblib")
+            except FileNotFoundError:
+                final_scores = cross_validate(
+                    esn.best_estimator_, X, y, scoring=custom_loss_function,
+                    cv=cv_test, n_jobs=-1, return_train_score=True)
+                dump(final_scores, f"./results/basic_esn_{decoded_frame_sizes}"
+                                   f"_{hidden_layer_size}_{bidirectional}"
+                                   f"_scores.joblib")
 
     if fit_dlr_kmeans_esn:
         LOGGER.info(f"Creating DLR KM-ESN pipeline...")
@@ -260,12 +264,16 @@ def main(fit_basic_esn=False, fit_kmeans_esn=False,
                     **kwargs_final).fit(X, y)
                 dump(esn, f"./results/dlr_kmeans_esn_{decoded_frame_sizes}_"
                           f"{hidden_layer_size}_{bidirectional}.joblib")
-            final_scores = cross_validate(
-                esn.best_estimator_, X, y, scoring=custom_loss_function,
-                cv=cv_test, n_jobs=-1, return_train_score=True)
-            dump(final_scores, f"./results/dlr_kmeans_esn_"
-                               f"{decoded_frame_sizes}_{hidden_layer_size}_"
-                               f"{bidirectional}_scores.joblib")
+            try:
+                load(f"./results/dlr_kmeans_esn_{decoded_frame_sizes}"
+                     f"_{hidden_layer_size}_{bidirectional}_scores.joblib")
+            except FileNotFoundError:
+                final_scores = cross_validate(
+                    esn.best_estimator_, X, y, scoring=custom_loss_function,
+                    cv=cv_test, n_jobs=-1, return_train_score=True)
+                dump(final_scores, f"./results/dlr_kmeans_esn_"
+                                   f"{decoded_frame_sizes}_{hidden_layer_size}"
+                                   f"_{bidirectional}_scores.joblib")
 
     if fit_scr_kmeans_esn:
         LOGGER.info(f"Creating SCR KM-ESN pipeline...")
@@ -335,12 +343,16 @@ def main(fit_basic_esn=False, fit_kmeans_esn=False,
                     **kwargs_final).fit(X, y)
                 dump(esn, f"./results/scr_kmeans_esn_{decoded_frame_sizes}_"
                           f"{hidden_layer_size}_{bidirectional}.joblib")
-            final_scores = cross_validate(
-                esn.best_estimator_, X, y, scoring=custom_loss_function,
-                cv=cv_test, n_jobs=-1, return_train_score=True)
-            dump(final_scores, f"./results/scr_kmeans_esn_"
-                               f"{decoded_frame_sizes}_{hidden_layer_size}_"
-                               f"{bidirectional}_scores.joblib")
+            try:
+                load(f"./results/scr_kmeans_esn_{decoded_frame_sizes}"
+                     f"_{hidden_layer_size}_{bidirectional}_scores.joblib")
+            except FileNotFoundError:
+                final_scores = cross_validate(
+                    esn.best_estimator_, X, y, scoring=custom_loss_function,
+                    cv=cv_test, n_jobs=-1, return_train_score=True)
+                dump(final_scores, f"./results/scr_kmeans_esn_"
+                                   f"{decoded_frame_sizes}_{hidden_layer_size}"
+                                   f"_{bidirectional}_scores.joblib")
 
     if fit_dlrb_kmeans_esn:
         LOGGER.info(f"Creating DLRB KM-ESN pipeline...")
@@ -416,12 +428,16 @@ def main(fit_basic_esn=False, fit_kmeans_esn=False,
                     **kwargs_final).fit(X, y)
                 dump(esn, f"./results/dlrb_kmeans_esn_{decoded_frame_sizes}_"
                           f"{hidden_layer_size}_{bidirectional}.joblib")
-            final_scores = cross_validate(
-                esn.best_estimator_, X, y, scoring=custom_loss_function,
-                cv=cv_test, n_jobs=-1, return_train_score=True)
-            dump(final_scores, f"./results/dlrb_kmeans_esn_"
-                               f"{decoded_frame_sizes}_{hidden_layer_size}_"
-                               f"{bidirectional}_scores.joblib")
+            try:
+                load(f"./results/dlrb_kmeans_esn_{decoded_frame_sizes}"
+                     f"_{hidden_layer_size}_{bidirectional}_scores.joblib")
+            except FileNotFoundError:
+                final_scores = cross_validate(
+                    esn.best_estimator_, X, y, scoring=custom_loss_function,
+                    cv=cv_test, n_jobs=-1, return_train_score=True)
+                dump(final_scores, f"./results/dlrb_kmeans_esn_"
+                                   f"{decoded_frame_sizes}_{hidden_layer_size}"
+                                   f"_{bidirectional}_scores.joblib")
 
     if fit_dlr_esn:
         LOGGER.info(f"Creating DLR ESN pipeline...")
@@ -491,12 +507,16 @@ def main(fit_basic_esn=False, fit_kmeans_esn=False,
                     **kwargs_final).fit(X, y)
                 dump(esn, f"./results/dlr_esn_{decoded_frame_sizes}_"
                           f"{hidden_layer_size}_{bidirectional}.joblib")
-            final_scores = cross_validate(
-                esn.best_estimator_, X, y, scoring=custom_loss_function,
-                cv=cv_test, n_jobs=-1, return_train_score=True)
-            dump(final_scores, f"./results/dlr_esn_{decoded_frame_sizes}_"
-                               f"{hidden_layer_size}_{bidirectional}_scores"
-                               f".joblib")
+            try:
+                load(f"./results/dlr_esn_{decoded_frame_sizes}"
+                     f"_{hidden_layer_size}_{bidirectional}_scores.joblib")
+            except FileNotFoundError:
+                final_scores = cross_validate(
+                    esn.best_estimator_, X, y, scoring=custom_loss_function,
+                    cv=cv_test, n_jobs=-1, return_train_score=True)
+                dump(final_scores, f"./results/dlr_esn_{decoded_frame_sizes}_"
+                                   f"{hidden_layer_size}_{bidirectional}"
+                                   f"_scores.joblib")
 
     if fit_scr_esn:
         LOGGER.info(f"Creating SCR ESN pipeline...")
@@ -566,12 +586,16 @@ def main(fit_basic_esn=False, fit_kmeans_esn=False,
                     **kwargs_final).fit(X, y)
                 dump(esn, f"./results/scr_esn_{decoded_frame_sizes}_"
                           f"{hidden_layer_size}_{bidirectional}.joblib")
-            final_scores = cross_validate(
-                esn.best_estimator_, X, y, scoring=custom_loss_function,
-                cv=cv_test, n_jobs=-1, return_train_score=True)
-            dump(final_scores, f"./results/scr_esn_{decoded_frame_sizes}_"
-                               f"{hidden_layer_size}_{bidirectional}_scores"
-                               f".joblib")
+            try:
+                load(f"./results/scr_esn_{decoded_frame_sizes}"
+                     f"_{hidden_layer_size}_{bidirectional}_scores.joblib")
+            except FileNotFoundError:
+                final_scores = cross_validate(
+                    esn.best_estimator_, X, y, scoring=custom_loss_function,
+                    cv=cv_test, n_jobs=-1, return_train_score=True)
+                dump(final_scores, f"./results/scr_esn_{decoded_frame_sizes}_"
+                                   f"{hidden_layer_size}_{bidirectional}"
+                                   f"_scores.joblib")
 
     if fit_dlrb_esn:
         LOGGER.info(f"Creating DLRB ESN pipeline...")
@@ -647,12 +671,16 @@ def main(fit_basic_esn=False, fit_kmeans_esn=False,
                     **kwargs_final).fit(X, y)
                 dump(esn, f"./results/dlrb_esn_{decoded_frame_sizes}_"
                           f"{hidden_layer_size}_{bidirectional}.joblib")
-            final_scores = cross_validate(
-                esn.best_estimator_, X, y, scoring=custom_loss_function,
-                cv=cv_test, n_jobs=-1, return_train_score=True)
-            dump(final_scores, f"./results/dlrb_esn_{decoded_frame_sizes}_"
-                               f"{hidden_layer_size}_{bidirectional}_scores"
-                               f".joblib")
+            try:
+                load(f"./results/dlrb_esn_{decoded_frame_sizes}"
+                     f"_{hidden_layer_size}_{bidirectional}_scores.joblib")
+            except FileNotFoundError:
+                final_scores = cross_validate(
+                    esn.best_estimator_, X, y, scoring=custom_loss_function,
+                    cv=cv_test, n_jobs=-1, return_train_score=True)
+                dump(final_scores, f"./results/dlrb_esn_{decoded_frame_sizes}_"
+                                   f"{hidden_layer_size}_{bidirectional}"
+                                   f"_scores.joblib")
 
     if fit_kmeans_esn:
         LOGGER.info(f"Creating KM-ESN pipeline...")
@@ -721,12 +749,16 @@ def main(fit_basic_esn=False, fit_kmeans_esn=False,
                     **kwargs_final).fit(X, y)
                 dump(esn, f"./results/kmeans_esn_{decoded_frame_sizes}_"
                           f"{hidden_layer_size}_{bidirectional}.joblib")
-            final_scores = cross_validate(
-                esn.best_estimator_, X, y, scoring=custom_loss_function,
-                cv=cv_test, n_jobs=-1, return_train_score=True)
-            dump(final_scores, f"./results/kmeans_esn_{decoded_frame_sizes}_"
-                               f"{hidden_layer_size}_{bidirectional}_scores"
-                               f".joblib")
+            try:
+                load(f"./results/kmeans_esn_{decoded_frame_sizes}"
+                     f"_{hidden_layer_size}_{bidirectional}_scores.joblib")
+            except FileNotFoundError:
+                final_scores = cross_validate(
+                    esn.best_estimator_, X, y, scoring=custom_loss_function,
+                    cv=cv_test, n_jobs=-1, return_train_score=True)
+                dump(final_scores, f"./results/kmeans_esn_"
+                                   f"{decoded_frame_sizes}_{hidden_layer_size}"
+                                   f"_{bidirectional}_scores.joblib")
 
     if fit_attention_kmeans_esn:
         LOGGER.info(f"Creating Attention [0, 1] KM-ESN pipeline...")
@@ -797,12 +829,17 @@ def main(fit_basic_esn=False, fit_kmeans_esn=False,
                 dump(esn, f"./results/kmeans_esn_attention_0_1_"
                           f"{decoded_frame_sizes}_{hidden_layer_size}_"
                           f"{bidirectional}.joblib")
-            final_scores = cross_validate(
-                esn.best_estimator_, X, y, scoring=custom_loss_function,
-                cv=cv_test, n_jobs=-1, return_train_score=True)
-            dump(final_scores, f"./results/kmeans_esn_attention_0_1_"
-                               f"{decoded_frame_sizes}_{hidden_layer_size}_"
-                               f"{bidirectional}_scores.joblib")
+            try:
+                load(f"./results/kmeans_esn_attention_0_1_"
+                     f"{decoded_frame_sizes}_{hidden_layer_size}_"
+                     f"{bidirectional}_scores.joblib")
+            except FileNotFoundError:
+                final_scores = cross_validate(
+                    esn.best_estimator_, X, y, scoring=custom_loss_function,
+                    cv=cv_test, n_jobs=-1, return_train_score=True)
+                dump(final_scores, f"./results/kmeans_esn_attention_0_1_"
+                                   f"{decoded_frame_sizes}_{hidden_layer_size}"
+                                   f"_{bidirectional}_scores.joblib")
 
     if fit_attention_kmeans_esn:
         LOGGER.info(f"Creating Attention [-1, 1] KM-ESN pipeline...")
@@ -873,12 +910,17 @@ def main(fit_basic_esn=False, fit_kmeans_esn=False,
                 dump(esn, f"./results/kmeans_esn_attention_-1_1_"
                           f"{decoded_frame_sizes}_{hidden_layer_size}_"
                           f"{bidirectional}.joblib")
-            final_scores = cross_validate(
-                esn.best_estimator_, X, y, scoring=custom_loss_function,
-                cv=cv_test, n_jobs=-1, return_train_score=True)
-            dump(final_scores, f"./results/kmeans_esn_attention_-1_1_"
-                               f"{decoded_frame_sizes}_{hidden_layer_size}_"
-                               f"{bidirectional}_scores.joblib")
+            try:
+                load(f"./results/kmeans_esn_attention_-1_1_"
+                     f"{decoded_frame_sizes}_{hidden_layer_size}_"
+                     f"{bidirectional}_scores.joblib")
+            except FileNotFoundError:
+                final_scores = cross_validate(
+                    esn.best_estimator_, X, y, scoring=custom_loss_function,
+                    cv=cv_test, n_jobs=-1, return_train_score=True)
+                dump(final_scores, f"./results/kmeans_esn_attention_-1_1_"
+                                   f"{decoded_frame_sizes}_{hidden_layer_size}"
+                                   f"_{bidirectional}_scores.joblib")
 
 
 if __name__ == "__main__":
