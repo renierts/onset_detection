@@ -10,8 +10,8 @@ import logging
 
 import madmom
 
-from sklearn.model_selection import RandomizedSearchCV
-from sklearn.model_selection import PredefinedSplit
+from sklearn.model_selection import (RandomizedSearchCV, cross_validate,
+                                     ParameterGrid)
 from sklearn.metrics import make_scorer
 from scipy.stats import uniform
 from sklearn.base import clone
@@ -24,11 +24,43 @@ from metrics import cosine_distance
 from signal_processing import OnsetPreProcessor
 from model_selection import PredefinedTrainValidationTestSplit
 import numpy as np
-from joblib import dump, load
+from joblib import dump, load, Parallel, delayed
 from itertools import product
 
 from pyrcn.echo_state_network import ESNRegressor
 from pyrcn.model_selection import SequentialSearchCV
+
+
+def custom_loss_function(model, X, y):
+    annotations = [np.argwhere(y_true).flatten() / 100. for y_true in y]
+    y_pred = model.predict(X)
+    cv_results = {"sum_precision": [],
+                  "sum_recall": [],
+                  "sum_fmeasure": [],
+                  "mean_precision": [],
+                  "mean_recall": [],
+                  "mean_fmeasure": []}
+    for thr in np.linspace(0, 1, 11):
+        rnn_peak_picking = madmom.features.onsets.OnsetPeakPickingProcessor(
+            threshold=thr, pre_max=0.01, post_max=0.01, smooth=0.07,
+            combine=0.03)
+        detections = [rnn_peak_picking(act) for act in y_pred]
+        se, me = evaluate_onsets(detections, annotations)
+        cv_results["sum_precision"].append(se.precision)
+        cv_results["sum_recall"].append(se.recall)
+        cv_results["sum_fmeasure"].append(se.fmeasure)
+        cv_results["mean_precision"].append(me.precision)
+        cv_results["mean_recall"].append(me.recall)
+        cv_results["mean_fmeasure"].append(me.fmeasure)
+    argmax_sum = np.argmax(cv_results["sum_fmeasure"])
+    argmax_mean = np.argmax(cv_results["mean_fmeasure"])
+    cv_results["sum_precision"] = cv_results["sum_precision"][argmax_sum]
+    cv_results["sum_recall"] = cv_results["sum_recall"][argmax_sum]
+    cv_results["sum_fmeasure"] = cv_results["sum_fmeasure"][argmax_sum]
+    cv_results["mean_precision"] = cv_results["mean_precision"][argmax_mean]
+    cv_results["mean_recall"] = cv_results["mean_recall"][argmax_mean]
+    cv_results["mean_fmeasure"] = cv_results["mean_fmeasure"][argmax_mean]
+    return cv_results
 
 
 def evaluate_onsets(predictions, annotations):
@@ -132,16 +164,16 @@ def main(fit_basic_esn=False, fit_kmeans_esn=False,
         LOGGER.info("... done!")
         kwargs_final = {
             "cv": cv_vali, 'n_iter': 50, 'random_state': 42, 'verbose': 10,
-            'n_jobs': -1, 'refit': False,
+            'n_jobs': -1,
             'scoring': make_scorer(cosine_distance, greater_is_better=False)}
         param_distributions_final = {'alpha': loguniform(1e-5, 1e1)}
-        hidden_layer_sizes = (50, 100, 200, 400, 800, 1600, 3200, 6400,
-                              12800, 25600)
-        bi_directional = (False, True)
-        for hidden_layer_size, bidirectional in product(
-                hidden_layer_sizes, bi_directional):
-            params = {"hidden_layer_size": hidden_layer_size,
-                      "bidirectional": bidirectional}
+        grid = ParameterGrid({"hidden_layer_size": (50, 100, 200, 400, 800,
+                                                    1600, 3200, 6400, 12800,
+                                                    25600),
+                              "bidirectional": (False, True)})
+        for params in grid:
+            hidden_layer_size = params["hidden_layer_size"]
+            bidirectional = params["bidirectional"]
             try:
                 esn = load(f"./results/basic_esn_{decoded_frame_sizes}_"
                            f"{hidden_layer_size}_{bidirectional}.joblib")
@@ -153,6 +185,12 @@ def main(fit_basic_esn=False, fit_kmeans_esn=False,
                     **kwargs_final).fit(X, y)
                 dump(esn, f"./results/basic_esn_{decoded_frame_sizes}_"
                           f"{hidden_layer_size}_{bidirectional}.joblib")
+            final_scores = cross_validate(
+                esn.best_estimator_, X, y, scoring=custom_loss_function,
+                cv=cv_test, n_jobs=-1, return_train_score=True)
+            dump(final_scores, f"./results/basic_esn_{decoded_frame_sizes}_"
+                               f"{hidden_layer_size}_{bidirectional}"
+                               f"_scores.joblib")
 
     if fit_dlr_kmeans_esn:
         LOGGER.info(f"Creating DLR KM-ESN pipeline...")
@@ -201,16 +239,16 @@ def main(fit_basic_esn=False, fit_kmeans_esn=False,
         LOGGER.info("... done!")
         kwargs_final = {
             "cv": cv_vali, 'n_iter': 50, 'random_state': 42, 'verbose': 10,
-            'n_jobs': -1, 'refit': False,
+            'n_jobs': -1,
             'scoring': make_scorer(cosine_distance, greater_is_better=False)}
         param_distributions_final = {'alpha': loguniform(1e-5, 1e1)}
-        hidden_layer_sizes = (50, 100, 200, 400, 800, 1600, 3200, 6400,
-                              12800, 25600)
-        bi_directional = (False, True)
-        for hidden_layer_size, bidirectional in product(
-                hidden_layer_sizes, bi_directional):
-            params = {"hidden_layer_size": hidden_layer_size,
-                      "bidirectional": bidirectional}
+        grid = ParameterGrid({"hidden_layer_size": (50, 100, 200, 400, 800,
+                                                    1600, 3200, 6400, 12800,
+                                                    25600),
+                              "bidirectional": (False, True)})
+        for params in grid:
+            hidden_layer_size = params["hidden_layer_size"]
+            bidirectional = params["bidirectional"]
             try:
                 esn = load(f"./results/dlr_kmeans_esn_{decoded_frame_sizes}_"
                            f"{hidden_layer_size}_{bidirectional}.joblib")
@@ -222,6 +260,12 @@ def main(fit_basic_esn=False, fit_kmeans_esn=False,
                     **kwargs_final).fit(X, y)
                 dump(esn, f"./results/dlr_kmeans_esn_{decoded_frame_sizes}_"
                           f"{hidden_layer_size}_{bidirectional}.joblib")
+            final_scores = cross_validate(
+                esn.best_estimator_, X, y, scoring=custom_loss_function,
+                cv=cv_test, n_jobs=-1, return_train_score=True)
+            dump(final_scores, f"./results/dlr_kmeans_esn_"
+                               f"{decoded_frame_sizes}_{hidden_layer_size}_"
+                               f"{bidirectional}_scores.joblib")
 
     if fit_scr_kmeans_esn:
         LOGGER.info(f"Creating SCR KM-ESN pipeline...")
@@ -270,16 +314,16 @@ def main(fit_basic_esn=False, fit_kmeans_esn=False,
         LOGGER.info("... done!")
         kwargs_final = {
             "cv": cv_vali, 'n_iter': 50, 'random_state': 42, 'verbose': 10,
-            'n_jobs': -1, 'refit': False,
+            'n_jobs': -1,
             'scoring': make_scorer(cosine_distance, greater_is_better=False)}
         param_distributions_final = {'alpha': loguniform(1e-5, 1e1)}
-        hidden_layer_sizes = (50, 100, 200, 400, 800, 1600, 3200, 6400,
-                              12800, 25600)
-        bi_directional = (False, True)
-        for hidden_layer_size, bidirectional in product(
-                hidden_layer_sizes, bi_directional):
-            params = {"hidden_layer_size": hidden_layer_size,
-                      "bidirectional": bidirectional}
+        grid = ParameterGrid({"hidden_layer_size": (50, 100, 200, 400, 800,
+                                                    1600, 3200, 6400, 12800,
+                                                    25600),
+                              "bidirectional": (False, True)})
+        for params in grid:
+            hidden_layer_size = params["hidden_layer_size"]
+            bidirectional = params["bidirectional"]
             try:
                 esn = load(f"./results/scr_kmeans_esn_{decoded_frame_sizes}_"
                            f"{hidden_layer_size}_{bidirectional}.joblib")
@@ -291,6 +335,12 @@ def main(fit_basic_esn=False, fit_kmeans_esn=False,
                     **kwargs_final).fit(X, y)
                 dump(esn, f"./results/scr_kmeans_esn_{decoded_frame_sizes}_"
                           f"{hidden_layer_size}_{bidirectional}.joblib")
+            final_scores = cross_validate(
+                esn.best_estimator_, X, y, scoring=custom_loss_function,
+                cv=cv_test, n_jobs=-1, return_train_score=True)
+            dump(final_scores, f"./results/scr_kmeans_esn_"
+                               f"{decoded_frame_sizes}_{hidden_layer_size}_"
+                               f"{bidirectional}_scores.joblib")
 
     if fit_dlrb_kmeans_esn:
         LOGGER.info(f"Creating DLRB KM-ESN pipeline...")
@@ -345,16 +395,16 @@ def main(fit_basic_esn=False, fit_kmeans_esn=False,
         LOGGER.info("... done!")
         kwargs_final = {
             "cv": cv_vali, 'n_iter': 50, 'random_state': 42, 'verbose': 10,
-            'n_jobs': -1, 'refit': False,
+            'n_jobs': -1,
             'scoring': make_scorer(cosine_distance, greater_is_better=False)}
         param_distributions_final = {'alpha': loguniform(1e-5, 1e1)}
-        hidden_layer_sizes = (50, 100, 200, 400, 800, 1600, 3200, 6400,
-                              12800, 25600)
-        bi_directional = (False, True)
-        for hidden_layer_size, bidirectional in product(
-                hidden_layer_sizes, bi_directional):
-            params = {"hidden_layer_size": hidden_layer_size,
-                      "bidirectional": bidirectional}
+        grid = ParameterGrid({"hidden_layer_size": (50, 100, 200, 400, 800,
+                                                    1600, 3200, 6400, 12800,
+                                                    25600),
+                              "bidirectional": (False, True)})
+        for params in grid:
+            hidden_layer_size = params["hidden_layer_size"]
+            bidirectional = params["bidirectional"]
             try:
                 esn = load(f"./results/dlrb_kmeans_esn_{decoded_frame_sizes}_"
                            f"{hidden_layer_size}_{bidirectional}.joblib")
@@ -366,6 +416,12 @@ def main(fit_basic_esn=False, fit_kmeans_esn=False,
                     **kwargs_final).fit(X, y)
                 dump(esn, f"./results/dlrb_kmeans_esn_{decoded_frame_sizes}_"
                           f"{hidden_layer_size}_{bidirectional}.joblib")
+            final_scores = cross_validate(
+                esn.best_estimator_, X, y, scoring=custom_loss_function,
+                cv=cv_test, n_jobs=-1, return_train_score=True)
+            dump(final_scores, f"./results/dlrb_kmeans_esn_"
+                               f"{decoded_frame_sizes}_{hidden_layer_size}_"
+                               f"{bidirectional}_scores.joblib")
 
     if fit_dlr_esn:
         LOGGER.info(f"Creating DLR ESN pipeline...")
@@ -414,16 +470,16 @@ def main(fit_basic_esn=False, fit_kmeans_esn=False,
         LOGGER.info("... done!")
         kwargs_final = {
             "cv": cv_vali, 'n_iter': 50, 'random_state': 42, 'verbose': 10,
-            'n_jobs': -1, 'refit': False,
+            'n_jobs': -1,
             'scoring': make_scorer(cosine_distance, greater_is_better=False)}
         param_distributions_final = {'alpha': loguniform(1e-5, 1e1)}
-        hidden_layer_sizes = (50, 100, 200, 400, 800, 1600, 3200, 6400,
-                              12800, 25600)
-        bi_directional = (False, True)
-        for hidden_layer_size, bidirectional in product(
-                hidden_layer_sizes, bi_directional):
-            params = {"hidden_layer_size": hidden_layer_size,
-                      "bidirectional": bidirectional}
+        grid = ParameterGrid({"hidden_layer_size": (50, 100, 200, 400, 800,
+                                                    1600, 3200, 6400, 12800,
+                                                    25600),
+                              "bidirectional": (False, True)})
+        for params in grid:
+            hidden_layer_size = params["hidden_layer_size"]
+            bidirectional = params["bidirectional"]
             try:
                 esn = load(f"./results/dlr_esn_{decoded_frame_sizes}_"
                            f"{hidden_layer_size}_{bidirectional}.joblib")
@@ -435,6 +491,12 @@ def main(fit_basic_esn=False, fit_kmeans_esn=False,
                     **kwargs_final).fit(X, y)
                 dump(esn, f"./results/dlr_esn_{decoded_frame_sizes}_"
                           f"{hidden_layer_size}_{bidirectional}.joblib")
+            final_scores = cross_validate(
+                esn.best_estimator_, X, y, scoring=custom_loss_function,
+                cv=cv_test, n_jobs=-1, return_train_score=True)
+            dump(final_scores, f"./results/dlr_esn_{decoded_frame_sizes}_"
+                               f"{hidden_layer_size}_{bidirectional}_scores"
+                               f".joblib")
 
     if fit_scr_esn:
         LOGGER.info(f"Creating SCR ESN pipeline...")
@@ -483,16 +545,16 @@ def main(fit_basic_esn=False, fit_kmeans_esn=False,
         LOGGER.info("... done!")
         kwargs_final = {
             "cv": cv_vali, 'n_iter': 50, 'random_state': 42, 'verbose': 10,
-            'n_jobs': -1, 'refit': False,
+            'n_jobs': -1,
             'scoring': make_scorer(cosine_distance, greater_is_better=False)}
         param_distributions_final = {'alpha': loguniform(1e-5, 1e1)}
-        hidden_layer_sizes = (50, 100, 200, 400, 800, 1600, 3200, 6400,
-                              12800, 25600)
-        bi_directional = (False, True)
-        for hidden_layer_size, bidirectional in product(
-                hidden_layer_sizes, bi_directional):
-            params = {"hidden_layer_size": hidden_layer_size,
-                      "bidirectional": bidirectional}
+        grid = ParameterGrid({"hidden_layer_size": (50, 100, 200, 400, 800,
+                                                    1600, 3200, 6400, 12800,
+                                                    25600),
+                              "bidirectional": (False, True)})
+        for params in grid:
+            hidden_layer_size = params["hidden_layer_size"]
+            bidirectional = params["bidirectional"]
             try:
                 esn = load(f"./results/scr_esn_{decoded_frame_sizes}_"
                            f"{hidden_layer_size}_{bidirectional}.joblib")
@@ -504,6 +566,12 @@ def main(fit_basic_esn=False, fit_kmeans_esn=False,
                     **kwargs_final).fit(X, y)
                 dump(esn, f"./results/scr_esn_{decoded_frame_sizes}_"
                           f"{hidden_layer_size}_{bidirectional}.joblib")
+            final_scores = cross_validate(
+                esn.best_estimator_, X, y, scoring=custom_loss_function,
+                cv=cv_test, n_jobs=-1, return_train_score=True)
+            dump(final_scores, f"./results/scr_esn_{decoded_frame_sizes}_"
+                               f"{hidden_layer_size}_{bidirectional}_scores"
+                               f".joblib")
 
     if fit_dlrb_esn:
         LOGGER.info(f"Creating DLRB ESN pipeline...")
@@ -558,16 +626,16 @@ def main(fit_basic_esn=False, fit_kmeans_esn=False,
         LOGGER.info("... done!")
         kwargs_final = {
             "cv": cv_vali, 'n_iter': 50, 'random_state': 42, 'verbose': 10,
-            'n_jobs': -1, 'refit': False,
+            'n_jobs': -1,
             'scoring': make_scorer(cosine_distance, greater_is_better=False)}
         param_distributions_final = {'alpha': loguniform(1e-5, 1e1)}
-        hidden_layer_sizes = (50, 100, 200, 400, 800, 1600, 3200, 6400,
-                              12800, 25600)
-        bi_directional = (False, True)
-        for hidden_layer_size, bidirectional in product(
-                hidden_layer_sizes, bi_directional):
-            params = {"hidden_layer_size": hidden_layer_size,
-                      "bidirectional": bidirectional}
+        grid = ParameterGrid({"hidden_layer_size": (50, 100, 200, 400, 800,
+                                                    1600, 3200, 6400, 12800,
+                                                    25600),
+                              "bidirectional": (False, True)})
+        for params in grid:
+            hidden_layer_size = params["hidden_layer_size"]
+            bidirectional = params["bidirectional"]
             try:
                 esn = load(f"./results/dlrb_esn_{decoded_frame_sizes}_"
                            f"{hidden_layer_size}_{bidirectional}.joblib")
@@ -579,6 +647,12 @@ def main(fit_basic_esn=False, fit_kmeans_esn=False,
                     **kwargs_final).fit(X, y)
                 dump(esn, f"./results/dlrb_esn_{decoded_frame_sizes}_"
                           f"{hidden_layer_size}_{bidirectional}.joblib")
+            final_scores = cross_validate(
+                esn.best_estimator_, X, y, scoring=custom_loss_function,
+                cv=cv_test, n_jobs=-1, return_train_score=True)
+            dump(final_scores, f"./results/dlrb_esn_{decoded_frame_sizes}_"
+                               f"{hidden_layer_size}_{bidirectional}_scores"
+                               f".joblib")
 
     if fit_kmeans_esn:
         LOGGER.info(f"Creating KM-ESN pipeline...")
@@ -626,18 +700,16 @@ def main(fit_basic_esn=False, fit_kmeans_esn=False,
         LOGGER.info("... done!")
         kwargs_final = {
             "cv": cv_vali, 'n_iter': 50, 'random_state': 42, 'verbose': 10,
-            'n_jobs': -1, 'refit': False,
+            'n_jobs': -1,
             'scoring': make_scorer(cosine_distance, greater_is_better=False)}
         param_distributions_final = {'alpha': loguniform(1e-5, 1e1)}
-        hidden_layer_sizes = (
-            # 50, 100, 200, 400, 800, 1600, 3200,
-            6400, 12800, 25600)
-        bi_directional = (False, True)
-
-        for hidden_layer_size, bidirectional in product(
-                hidden_layer_sizes, bi_directional):
-            params = {"hidden_layer_size": hidden_layer_size,
-                      "bidirectional": bidirectional}
+        grid = ParameterGrid({"hidden_layer_size": (50, 100, 200, 400, 800,
+                                                    1600, 3200, 6400, 12800,
+                                                    25600),
+                              "bidirectional": (False, True)})
+        for params in grid:
+            hidden_layer_size = params["hidden_layer_size"]
+            bidirectional = params["bidirectional"]
             try:
                 esn = load(f"./results/kmeans_esn_{decoded_frame_sizes}_"
                            f"{hidden_layer_size}_{bidirectional}.joblib")
@@ -649,6 +721,12 @@ def main(fit_basic_esn=False, fit_kmeans_esn=False,
                     **kwargs_final).fit(X, y)
                 dump(esn, f"./results/kmeans_esn_{decoded_frame_sizes}_"
                           f"{hidden_layer_size}_{bidirectional}.joblib")
+            final_scores = cross_validate(
+                esn.best_estimator_, X, y, scoring=custom_loss_function,
+                cv=cv_test, n_jobs=-1, return_train_score=True)
+            dump(final_scores, f"./results/kmeans_esn_{decoded_frame_sizes}_"
+                               f"{hidden_layer_size}_{bidirectional}_scores"
+                               f".joblib")
 
     if fit_attention_kmeans_esn:
         LOGGER.info(f"Creating Attention [0, 1] KM-ESN pipeline...")
@@ -696,16 +774,16 @@ def main(fit_basic_esn=False, fit_kmeans_esn=False,
         LOGGER.info("... done!")
         kwargs_final = {
             "cv": cv_vali, 'n_iter': 50, 'random_state': 42, 'verbose': 10,
-            'n_jobs': -1, 'refit': False,
+            'n_jobs': -1,
             'scoring': make_scorer(cosine_distance, greater_is_better=False)}
         param_distributions_final = {'alpha': loguniform(1e-5, 1e1)}
-        hidden_layer_sizes = (50, 100, 200, 400, 800, 1600, 3200, 6400,
-                              12800, 25600)
-        bi_directional = (False, True)
-        for hidden_layer_size, bidirectional in product(
-                hidden_layer_sizes, bi_directional):
-            params = {"hidden_layer_size": hidden_layer_size,
-                      "bidirectional": bidirectional}
+        grid = ParameterGrid({"hidden_layer_size": (50, 100, 200, 400, 800,
+                                                    1600, 3200, 6400, 12800,
+                                                    25600),
+                              "bidirectional": (False, True)})
+        for params in grid:
+            hidden_layer_size = params["hidden_layer_size"]
+            bidirectional = params["bidirectional"]
             try:
                 esn = load(f"./results/kmeans_esn_attention_0_1_"
                            f"{decoded_frame_sizes}_{hidden_layer_size}_"
@@ -719,6 +797,12 @@ def main(fit_basic_esn=False, fit_kmeans_esn=False,
                 dump(esn, f"./results/kmeans_esn_attention_0_1_"
                           f"{decoded_frame_sizes}_{hidden_layer_size}_"
                           f"{bidirectional}.joblib")
+            final_scores = cross_validate(
+                esn.best_estimator_, X, y, scoring=custom_loss_function,
+                cv=cv_test, n_jobs=-1, return_train_score=True)
+            dump(final_scores, f"./results/kmeans_esn_attention_0_1_"
+                               f"{decoded_frame_sizes}_{hidden_layer_size}_"
+                               f"{bidirectional}_scores.joblib")
 
     if fit_attention_kmeans_esn:
         LOGGER.info(f"Creating Attention [-1, 1] KM-ESN pipeline...")
@@ -766,16 +850,16 @@ def main(fit_basic_esn=False, fit_kmeans_esn=False,
         LOGGER.info("... done!")
         kwargs_final = {
             "cv": cv_vali, 'n_iter': 50, 'random_state': 42, 'verbose': 10,
-            'n_jobs': -1, 'refit': False,
+            'n_jobs': -1,
             'scoring': make_scorer(cosine_distance, greater_is_better=False)}
         param_distributions_final = {'alpha': loguniform(1e-5, 1e1)}
-        hidden_layer_sizes = (50, 100, 200, 400, 800, 1600, 3200, 6400,
-                              12800, 25600)
-        bi_directional = (False, True)
-        for hidden_layer_size, bidirectional in product(
-                hidden_layer_sizes, bi_directional):
-            params = {"hidden_layer_size": hidden_layer_size,
-                      "bidirectional": bidirectional}
+        grid = ParameterGrid({"hidden_layer_size": (50, 100, 200, 400, 800,
+                                                    1600, 3200, 6400, 12800,
+                                                    25600),
+                              "bidirectional": (False, True)})
+        for params in grid:
+            hidden_layer_size = params["hidden_layer_size"]
+            bidirectional = params["bidirectional"]
             try:
                 esn = load(f"./results/kmeans_esn_attention_-1_1_"
                            f"{decoded_frame_sizes}_{hidden_layer_size}_"
@@ -789,6 +873,12 @@ def main(fit_basic_esn=False, fit_kmeans_esn=False,
                 dump(esn, f"./results/kmeans_esn_attention_-1_1_"
                           f"{decoded_frame_sizes}_{hidden_layer_size}_"
                           f"{bidirectional}.joblib")
+            final_scores = cross_validate(
+                esn.best_estimator_, X, y, scoring=custom_loss_function,
+                cv=cv_test, n_jobs=-1, return_train_score=True)
+            dump(final_scores, f"./results/kmeans_esn_attention_-1_1_"
+                               f"{decoded_frame_sizes}_{hidden_layer_size}_"
+                               f"{bidirectional}_scores.joblib")
 
 
 if __name__ == "__main__":
