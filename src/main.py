@@ -132,7 +132,7 @@ def main(fit_basic_esn=False, fit_kmeans_esn=False,
         LOGGER.info("... done!")
         kwargs_final = {
             "cv": cv_vali, 'n_iter': 50, 'random_state': 42, 'verbose': 10,
-            'n_jobs': -1,
+            'n_jobs': -1, 'refit': False,
             'scoring': make_scorer(cosine_distance, greater_is_better=False)}
         param_distributions_final = {'alpha': loguniform(1e-5, 1e1)}
         hidden_layer_sizes = (50, 100, 200, 400, 800, 1600, 3200, 6400,
@@ -201,7 +201,7 @@ def main(fit_basic_esn=False, fit_kmeans_esn=False,
         LOGGER.info("... done!")
         kwargs_final = {
             "cv": cv_vali, 'n_iter': 50, 'random_state': 42, 'verbose': 10,
-            'n_jobs': -1,
+            'n_jobs': -1, 'refit': False,
             'scoring': make_scorer(cosine_distance, greater_is_better=False)}
         param_distributions_final = {'alpha': loguniform(1e-5, 1e1)}
         hidden_layer_sizes = (50, 100, 200, 400, 800, 1600, 3200, 6400,
@@ -270,7 +270,7 @@ def main(fit_basic_esn=False, fit_kmeans_esn=False,
         LOGGER.info("... done!")
         kwargs_final = {
             "cv": cv_vali, 'n_iter': 50, 'random_state': 42, 'verbose': 10,
-            'n_jobs': -1,
+            'n_jobs': -1, 'refit': False,
             'scoring': make_scorer(cosine_distance, greater_is_better=False)}
         param_distributions_final = {'alpha': loguniform(1e-5, 1e1)}
         hidden_layer_sizes = (50, 100, 200, 400, 800, 1600, 3200, 6400,
@@ -345,7 +345,7 @@ def main(fit_basic_esn=False, fit_kmeans_esn=False,
         LOGGER.info("... done!")
         kwargs_final = {
             "cv": cv_vali, 'n_iter': 50, 'random_state': 42, 'verbose': 10,
-            'n_jobs': -1,
+            'n_jobs': -1, 'refit': False,
             'scoring': make_scorer(cosine_distance, greater_is_better=False)}
         param_distributions_final = {'alpha': loguniform(1e-5, 1e1)}
         hidden_layer_sizes = (50, 100, 200, 400, 800, 1600, 3200, 6400,
@@ -414,7 +414,7 @@ def main(fit_basic_esn=False, fit_kmeans_esn=False,
         LOGGER.info("... done!")
         kwargs_final = {
             "cv": cv_vali, 'n_iter': 50, 'random_state': 42, 'verbose': 10,
-            'n_jobs': -1,
+            'n_jobs': -1, 'refit': False,
             'scoring': make_scorer(cosine_distance, greater_is_better=False)}
         param_distributions_final = {'alpha': loguniform(1e-5, 1e1)}
         hidden_layer_sizes = (50, 100, 200, 400, 800, 1600, 3200, 6400,
@@ -483,7 +483,7 @@ def main(fit_basic_esn=False, fit_kmeans_esn=False,
         LOGGER.info("... done!")
         kwargs_final = {
             "cv": cv_vali, 'n_iter': 50, 'random_state': 42, 'verbose': 10,
-            'n_jobs': -1,
+            'n_jobs': -1, 'refit': False,
             'scoring': make_scorer(cosine_distance, greater_is_better=False)}
         param_distributions_final = {'alpha': loguniform(1e-5, 1e1)}
         hidden_layer_sizes = (50, 100, 200, 400, 800, 1600, 3200, 6400,
@@ -558,7 +558,7 @@ def main(fit_basic_esn=False, fit_kmeans_esn=False,
         LOGGER.info("... done!")
         kwargs_final = {
             "cv": cv_vali, 'n_iter': 50, 'random_state': 42, 'verbose': 10,
-            'n_jobs': -1,
+            'n_jobs': -1, 'refit': False,
             'scoring': make_scorer(cosine_distance, greater_is_better=False)}
         param_distributions_final = {'alpha': loguniform(1e-5, 1e1)}
         hidden_layer_sizes = (50, 100, 200, 400, 800, 1600, 3200, 6400,
@@ -626,7 +626,7 @@ def main(fit_basic_esn=False, fit_kmeans_esn=False,
         LOGGER.info("... done!")
         kwargs_final = {
             "cv": cv_vali, 'n_iter': 50, 'random_state': 42, 'verbose': 10,
-            'n_jobs': -1,
+            'n_jobs': -1, 'refit': False,
             'scoring': make_scorer(cosine_distance, greater_is_better=False)}
         param_distributions_final = {'alpha': loguniform(1e-5, 1e1)}
         hidden_layer_sizes = (
@@ -696,7 +696,7 @@ def main(fit_basic_esn=False, fit_kmeans_esn=False,
         LOGGER.info("... done!")
         kwargs_final = {
             "cv": cv_vali, 'n_iter': 50, 'random_state': 42, 'verbose': 10,
-            'n_jobs': -1,
+            'n_jobs': -1, 'refit': False,
             'scoring': make_scorer(cosine_distance, greater_is_better=False)}
         param_distributions_final = {'alpha': loguniform(1e-5, 1e1)}
         hidden_layer_sizes = (50, 100, 200, 400, 800, 1600, 3200, 6400,
@@ -766,7 +766,7 @@ def main(fit_basic_esn=False, fit_kmeans_esn=False,
         LOGGER.info("... done!")
         kwargs_final = {
             "cv": cv_vali, 'n_iter': 50, 'random_state': 42, 'verbose': 10,
-            'n_jobs': -1,
+            'n_jobs': -1, 'refit': False,
             'scoring': make_scorer(cosine_distance, greater_is_better=False)}
         param_distributions_final = {'alpha': loguniform(1e-5, 1e1)}
         hidden_layer_sizes = (50, 100, 200, 400, 800, 1600, 3200, 6400,
