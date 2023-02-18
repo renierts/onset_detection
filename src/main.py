@@ -8,8 +8,6 @@ Stacked Echo State Networks for Musical Onset Detection".
 
 import logging
 
-import matplotlib.pyplot as plt
-import seaborn as sns
 import madmom
 
 from sklearn.model_selection import RandomizedSearchCV
@@ -76,9 +74,7 @@ def main(fit_basic_esn=False, fit_kmeans_esn=False,
     LOGGER.info("Loading the dataset...")
     pre_processor = OnsetPreProcessor(frame_sizes=frame_sizes,
                                       num_bands=num_bands)
-    dataset = OnsetDataset(
-        path=r"/scratch/ws/1/s2575425-onset-detection/onset_detection/data",
-        audio_suffix=".flac")
+    dataset = OnsetDataset(path=r"./data", audio_suffix=".flac")
     X, y = dataset.return_X_y(pre_processor=pre_processor)
     test_fold = np.zeros(shape=X.shape)
     start_idx = 0
@@ -135,7 +131,8 @@ def main(fit_basic_esn=False, fit_kmeans_esn=False,
                          f'{decoded_frame_sizes}.joblib')
         LOGGER.info("... done!")
         kwargs_final = {
-            'n_iter': 50, 'random_state': 42, 'verbose': 1, 'n_jobs': -1,
+            "cv": cv_vali, 'n_iter': 50, 'random_state': 42, 'verbose': 10,
+            'n_jobs': 1,
             'scoring': make_scorer(cosine_distance, greater_is_better=False)}
         param_distributions_final = {'alpha': loguniform(1e-5, 1e1)}
         hidden_layer_sizes = (50, 100, 200, 400, 800, 1600, 3200, 6400,
@@ -145,27 +142,17 @@ def main(fit_basic_esn=False, fit_kmeans_esn=False,
                 hidden_layer_sizes, bi_directional):
             params = {"hidden_layer_size": hidden_layer_size,
                       "bidirectional": bidirectional}
-            for k, (train_index, vali_index) in enumerate(cv_vali.split()):
-                test_fold = np.zeros(
-                    shape=(len(train_index) + len(vali_index), ), dtype=int)
-                test_fold[:len(train_index)] = -1
-                ps = PredefinedSplit(test_fold=test_fold)
-                try:
-                    esn = load(f"./results/basic_esn_{decoded_frame_sizes}_"
-                               f"{hidden_layer_size}_{bidirectional}_{k}"
-                               f".joblib")
-                    print(esn.best_estimator_.regressor.alpha)
-                except FileNotFoundError:
-                    esn = RandomizedSearchCV(
-                        estimator=clone(search.best_estimator_).set_params(
-                            **params), cv=ps,
-                        param_distributions=param_distributions_final,
-                        **kwargs_final).fit(
-                        X[np.hstack((train_index, vali_index))],
-                        y[np.hstack((train_index, vali_index))])
-                    dump(esn, f"./results/basic_esn_{decoded_frame_sizes}_"
-                              f"{hidden_layer_size}_{bidirectional}_{k}"
-                              f".joblib")
+            try:
+                esn = load(f"./results/basic_esn_{decoded_frame_sizes}_"
+                           f"{hidden_layer_size}_{bidirectional}.joblib")
+            except FileNotFoundError:
+                esn = RandomizedSearchCV(
+                    estimator=clone(
+                        search.best_estimator_).set_params(**params),
+                    param_distributions=param_distributions_final,
+                    **kwargs_final).fit(X, y)
+                dump(esn, f"./results/basic_esn_{decoded_frame_sizes}_"
+                          f"{hidden_layer_size}_{bidirectional}.joblib")
 
     if fit_dlr_kmeans_esn:
         LOGGER.info(f"Creating DLR KM-ESN pipeline...")
@@ -223,27 +210,17 @@ def main(fit_basic_esn=False, fit_kmeans_esn=False,
                 hidden_layer_sizes, bi_directional):
             params = {"hidden_layer_size": hidden_layer_size,
                       "bidirectional": bidirectional}
-            for k, (train_index, vali_index) in enumerate(cv_vali.split()):
-                test_fold = np.zeros(
-                    shape=(len(train_index) + len(vali_index), ), dtype=int)
-                test_fold[:len(train_index)] = -1
-                ps = PredefinedSplit(test_fold=test_fold)
-                try:
-                    esn = load(f"./results/dlr_kmeans_esn_{decoded_frame_sizes}"
-                               f"_{hidden_layer_size}_{bidirectional}_{k}"
-                               f".joblib")
-                    print(esn.best_estimator_.regressor.alpha)
-                except FileNotFoundError:
-                    esn = RandomizedSearchCV(
-                        estimator=clone(search.best_estimator_).set_params(
-                            **params), cv=ps,
-                        param_distributions=param_distributions_final,
-                        **kwargs_final).fit(
-                        X[np.hstack((train_index, vali_index))],
-                        y[np.hstack((train_index, vali_index))])
-                    dump(esn, f"./results/dlr_kmeans_esn_{decoded_frame_sizes}"
-                              f"_{hidden_layer_size}_{bidirectional}_{k}"
-                              f".joblib")
+            try:
+                esn = load(f"./results/dlr_kmeans_esn_{decoded_frame_sizes}_"
+                           f"{hidden_layer_size}_{bidirectional}.joblib")
+            except FileNotFoundError:
+                esn = RandomizedSearchCV(
+                    estimator=clone(
+                        search.best_estimator_).set_params(**params),
+                    param_distributions=param_distributions_final,
+                    **kwargs_final).fit(X, y)
+                dump(esn, f"./results/dlr_kmeans_esn_{decoded_frame_sizes}_"
+                          f"{hidden_layer_size}_{bidirectional}.joblib")
 
     if fit_scr_kmeans_esn:
         LOGGER.info(f"Creating SCR KM-ESN pipeline...")
@@ -301,27 +278,17 @@ def main(fit_basic_esn=False, fit_kmeans_esn=False,
                 hidden_layer_sizes, bi_directional):
             params = {"hidden_layer_size": hidden_layer_size,
                       "bidirectional": bidirectional}
-            for k, (train_index, vali_index) in enumerate(cv_vali.split()):
-                test_fold = np.zeros(
-                    shape=(len(train_index) + len(vali_index), ), dtype=int)
-                test_fold[:len(train_index)] = -1
-                ps = PredefinedSplit(test_fold=test_fold)
-                try:
-                    esn = load(f"./results/scr_kmeans_esn_{decoded_frame_sizes}"
-                               f"_{hidden_layer_size}_{bidirectional}_{k}"
-                               f".joblib")
-                    print(esn.best_estimator_.regressor.alpha)
-                except FileNotFoundError:
-                    esn = RandomizedSearchCV(
-                        estimator=clone(search.best_estimator_).set_params(
-                            **params), cv=ps,
-                        param_distributions=param_distributions_final,
-                        **kwargs_final).fit(
-                        X[np.hstack((train_index, vali_index))],
-                        y[np.hstack((train_index, vali_index))])
-                    dump(esn, f"./results/scr_kmeans_esn_{decoded_frame_sizes}"
-                              f"_{hidden_layer_size}_{bidirectional}_{k}"
-                              f".joblib")
+            try:
+                esn = load(f"./results/scr_kmeans_esn_{decoded_frame_sizes}_"
+                           f"{hidden_layer_size}_{bidirectional}.joblib")
+            except FileNotFoundError:
+                esn = RandomizedSearchCV(
+                    estimator=clone(
+                        search.best_estimator_).set_params(**params),
+                    param_distributions=param_distributions_final,
+                    **kwargs_final).fit(X, y)
+                dump(esn, f"./results/scr_kmeans_esn_{decoded_frame_sizes}_"
+                          f"{hidden_layer_size}_{bidirectional}.joblib")
 
     if fit_dlrb_kmeans_esn:
         LOGGER.info(f"Creating DLRB KM-ESN pipeline...")
@@ -385,27 +352,17 @@ def main(fit_basic_esn=False, fit_kmeans_esn=False,
                 hidden_layer_sizes, bi_directional):
             params = {"hidden_layer_size": hidden_layer_size,
                       "bidirectional": bidirectional}
-            for k, (train_index, vali_index) in enumerate(cv_vali.split()):
-                test_fold = np.zeros(
-                    shape=(len(train_index) + len(vali_index), ), dtype=int)
-                test_fold[:len(train_index)] = -1
-                ps = PredefinedSplit(test_fold=test_fold)
-                try:
-                    esn = load(f"./results/dlrb_kmeans_esn_{decoded_frame_sizes}"
-                               f"_{hidden_layer_size}_{bidirectional}_{k}"
-                               f".joblib")
-                    print(esn.best_estimator_.regressor.alpha)
-                except FileNotFoundError:
-                    esn = RandomizedSearchCV(
-                        estimator=clone(search.best_estimator_).set_params(
-                            **params), cv=ps,
-                        param_distributions=param_distributions_final,
-                        **kwargs_final).fit(
-                        X[np.hstack((train_index, vali_index))],
-                        y[np.hstack((train_index, vali_index))])
-                    dump(esn, f"./results/dlrb_kmeans_esn_{decoded_frame_sizes}"
-                              f"_{hidden_layer_size}_{bidirectional}_{k}"
-                              f".joblib")
+            try:
+                esn = load(f"./results/dlrb_kmeans_esn_{decoded_frame_sizes}_"
+                           f"{hidden_layer_size}_{bidirectional}.joblib")
+            except FileNotFoundError:
+                esn = RandomizedSearchCV(
+                    estimator=clone(
+                        search.best_estimator_).set_params(**params),
+                    param_distributions=param_distributions_final,
+                    **kwargs_final).fit(X, y)
+                dump(esn, f"./results/dlrb_kmeans_esn_{decoded_frame_sizes}_"
+                          f"{hidden_layer_size}_{bidirectional}.joblib")
 
     if fit_dlr_esn:
         LOGGER.info(f"Creating DLR ESN pipeline...")
@@ -463,27 +420,17 @@ def main(fit_basic_esn=False, fit_kmeans_esn=False,
                 hidden_layer_sizes, bi_directional):
             params = {"hidden_layer_size": hidden_layer_size,
                       "bidirectional": bidirectional}
-            for k, (train_index, vali_index) in enumerate(cv_vali.split()):
-                test_fold = np.zeros(
-                    shape=(len(train_index) + len(vali_index), ), dtype=int)
-                test_fold[:len(train_index)] = -1
-                ps = PredefinedSplit(test_fold=test_fold)
-                try:
-                    esn = load(f"./results/dlr_esn_{decoded_frame_sizes}"
-                               f"_{hidden_layer_size}_{bidirectional}_{k}"
-                               f".joblib")
-                    print(esn.best_estimator_.regressor.alpha)
-                except FileNotFoundError:
-                    esn = RandomizedSearchCV(
-                        estimator=clone(search.best_estimator_).set_params(
-                            **params), cv=ps,
-                        param_distributions=param_distributions_final,
-                        **kwargs_final).fit(
-                        X[np.hstack((train_index, vali_index))],
-                        y[np.hstack((train_index, vali_index))])
-                    dump(esn, f"./results/dlr_esn_{decoded_frame_sizes}"
-                              f"_{hidden_layer_size}_{bidirectional}_{k}"
-                              f".joblib")
+            try:
+                esn = load(f"./results/dlr_esn_{decoded_frame_sizes}_"
+                           f"{hidden_layer_size}_{bidirectional}.joblib")
+            except FileNotFoundError:
+                esn = RandomizedSearchCV(
+                    estimator=clone(
+                        search.best_estimator_).set_params(**params),
+                    param_distributions=param_distributions_final,
+                    **kwargs_final).fit(X, y)
+                dump(esn, f"./results/dlr_esn_{decoded_frame_sizes}_"
+                          f"{hidden_layer_size}_{bidirectional}.joblib")
 
     if fit_scr_esn:
         LOGGER.info(f"Creating SCR ESN pipeline...")
@@ -541,27 +488,17 @@ def main(fit_basic_esn=False, fit_kmeans_esn=False,
                 hidden_layer_sizes, bi_directional):
             params = {"hidden_layer_size": hidden_layer_size,
                       "bidirectional": bidirectional}
-            for k, (train_index, vali_index) in enumerate(cv_vali.split()):
-                test_fold = np.zeros(
-                    shape=(len(train_index) + len(vali_index), ), dtype=int)
-                test_fold[:len(train_index)] = -1
-                ps = PredefinedSplit(test_fold=test_fold)
-                try:
-                    esn = load(f"./results/scr_esn_{decoded_frame_sizes}"
-                               f"_{hidden_layer_size}_{bidirectional}_{k}"
-                               f".joblib")
-                    print(esn.best_estimator_.regressor.alpha)
-                except FileNotFoundError:
-                    esn = RandomizedSearchCV(
-                        estimator=clone(search.best_estimator_).set_params(
-                            **params), cv=ps,
-                        param_distributions=param_distributions_final,
-                        **kwargs_final).fit(
-                        X[np.hstack((train_index, vali_index))],
-                        y[np.hstack((train_index, vali_index))])
-                    dump(esn, f"./results/scr_esn_{decoded_frame_sizes}"
-                              f"_{hidden_layer_size}_{bidirectional}_{k}"
-                              f".joblib")
+            try:
+                esn = load(f"./results/scr_esn_{decoded_frame_sizes}_"
+                           f"{hidden_layer_size}_{bidirectional}.joblib")
+            except FileNotFoundError:
+                esn = RandomizedSearchCV(
+                    estimator=clone(
+                        search.best_estimator_).set_params(**params),
+                    param_distributions=param_distributions_final,
+                    **kwargs_final).fit(X, y)
+                dump(esn, f"./results/scr_esn_{decoded_frame_sizes}_"
+                          f"{hidden_layer_size}_{bidirectional}.joblib")
 
     if fit_dlrb_esn:
         LOGGER.info(f"Creating DLRB ESN pipeline...")
@@ -625,27 +562,17 @@ def main(fit_basic_esn=False, fit_kmeans_esn=False,
                 hidden_layer_sizes, bi_directional):
             params = {"hidden_layer_size": hidden_layer_size,
                       "bidirectional": bidirectional}
-            for k, (train_index, vali_index) in enumerate(cv_vali.split()):
-                test_fold = np.zeros(
-                    shape=(len(train_index) + len(vali_index), ), dtype=int)
-                test_fold[:len(train_index)] = -1
-                ps = PredefinedSplit(test_fold=test_fold)
-                try:
-                    esn = load(f"./results/dlrb_esn_{decoded_frame_sizes}"
-                               f"_{hidden_layer_size}_{bidirectional}_{k}"
-                               f".joblib")
-                    print(esn.best_estimator_.regressor.alpha)
-                except FileNotFoundError:
-                    esn = RandomizedSearchCV(
-                        estimator=clone(search.best_estimator_).set_params(
-                            **params), cv=ps,
-                        param_distributions=param_distributions_final,
-                        **kwargs_final).fit(
-                        X[np.hstack((train_index, vali_index))],
-                        y[np.hstack((train_index, vali_index))])
-                    dump(esn, f"./results/dlrb_esn_{decoded_frame_sizes}"
-                              f"_{hidden_layer_size}_{bidirectional}_{k}"
-                              f".joblib")
+            try:
+                esn = load(f"./results/dlrb_esn_{decoded_frame_sizes}_"
+                           f"{hidden_layer_size}_{bidirectional}.joblib")
+            except FileNotFoundError:
+                esn = RandomizedSearchCV(
+                    estimator=clone(
+                        search.best_estimator_).set_params(**params),
+                    param_distributions=param_distributions_final,
+                    **kwargs_final).fit(X, y)
+                dump(esn, f"./results/dlrb_esn_{decoded_frame_sizes}_"
+                          f"{hidden_layer_size}_{bidirectional}.joblib")
 
     if fit_kmeans_esn:
         LOGGER.info(f"Creating KM-ESN pipeline...")
@@ -704,27 +631,17 @@ def main(fit_basic_esn=False, fit_kmeans_esn=False,
                 hidden_layer_sizes, bi_directional):
             params = {"hidden_layer_size": hidden_layer_size,
                       "bidirectional": bidirectional}
-            for k, (train_index, vali_index) in enumerate(cv_vali.split()):
-                test_fold = np.zeros(
-                    shape=(len(train_index) + len(vali_index), ), dtype=int)
-                test_fold[:len(train_index)] = -1
-                ps = PredefinedSplit(test_fold=test_fold)
-                try:
-                    esn = load(f"./results/km_esn_{decoded_frame_sizes}_"
-                               f"{hidden_layer_size}_{bidirectional}_{k}"
-                               f".joblib")
-                    print(esn.best_estimator_.regressor.alpha)
-                except FileNotFoundError:
-                    esn = RandomizedSearchCV(
-                        estimator=clone(search.best_estimator_).set_params(
-                            **params), cv=ps,
-                        param_distributions=param_distributions_final,
-                        **kwargs_final).fit(
-                        X[np.hstack((train_index, vali_index))],
-                        y[np.hstack((train_index, vali_index))])
-                    dump(esn, f"./results/km_esn_{decoded_frame_sizes}_"
-                              f"{hidden_layer_size}_{bidirectional}_{k}"
-                              f".joblib")
+            try:
+                esn = load(f"./results/kmeans_esn_{decoded_frame_sizes}_"
+                           f"{hidden_layer_size}_{bidirectional}.joblib")
+            except FileNotFoundError:
+                esn = RandomizedSearchCV(
+                    estimator=clone(
+                        search.best_estimator_).set_params(**params),
+                    param_distributions=param_distributions_final,
+                    **kwargs_final).fit(X, y)
+                dump(esn, f"./results/kmeans_esn_{decoded_frame_sizes}_"
+                          f"{hidden_layer_size}_{bidirectional}.joblib")
 
     if fit_attention_kmeans_esn:
         LOGGER.info(f"Creating Attention [0, 1] KM-ESN pipeline...")
@@ -770,6 +687,7 @@ def main(fit_basic_esn=False, fit_kmeans_esn=False,
             dump(search, f'./results/sequential_search_kmeans_esn_attention_'
                          f'0_1_{decoded_frame_sizes}.joblib')
         LOGGER.info("... done!")
+
     if fit_attention_kmeans_esn:
         LOGGER.info(f"Creating Attention [-1, 1] KM-ESN pipeline...")
         initial_esn_params = {
